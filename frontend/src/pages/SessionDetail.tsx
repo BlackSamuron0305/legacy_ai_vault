@@ -2,31 +2,40 @@ import { Link, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/common/StatusBadge";
-import { transcriptSegments, extractedTopics } from "@/data/mockData";
-import { ArrowLeft, Clock, FileText, BookOpen, MessageSquare, AlertCircle, CheckCircle2, ExternalLink } from "lucide-react";
+import { useSession, useSessionTranscript, useSessionTopics } from "@/hooks/useApi";
+import { ArrowLeft, Clock, FileText, BookOpen, MessageSquare, AlertCircle, CheckCircle2, ExternalLink, Loader2 } from "lucide-react";
 
 export default function SessionDetail() {
+  const { id } = useParams();
+  const { data: session, isLoading } = useSession(id!);
+  const { data: transcriptSegments = [] } = useSessionTranscript(id!);
+  const { data: extractedTopics = [] } = useSessionTopics(id!);
+
+  if (isLoading || !session) {
+    return <div className="flex items-center justify-center h-64"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
+  }
+
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" asChild><Link to="/app/sessions"><ArrowLeft className="w-4 h-4" /></Link></Button>
         <div className="flex-1">
           <div className="flex items-center gap-3">
-            <h1 className="text-xl font-semibold">Engineering Lead Offboarding</h1>
-            <StatusBadge status="finalized" />
+            <h1 className="text-xl font-semibold">{session.employeeName || 'Session'} — Knowledge Capture</h1>
+            <StatusBadge status={session.status} />
           </div>
-          <p className="text-sm text-muted-foreground">Sarah Jenkins · Senior Staff Engineer · Engineering</p>
+          <p className="text-sm text-muted-foreground">{session.employeeName} · {session.employeeRole} · {session.department}</p>
         </div>
-        <Button variant="outline" size="sm" asChild><Link to="/app/reports/r1"><FileText className="w-4 h-4" /> View Report</Link></Button>
+        <Button variant="outline" size="sm" asChild><Link to={`/app/sessions/${id}/review`}><FileText className="w-4 h-4" /> Review</Link></Button>
       </div>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-4 gap-4">
         {[
-          { label: 'Duration', value: '1h 24m', icon: Clock },
-          { label: 'Topics Extracted', value: '18', icon: BookOpen },
-          { label: 'Transcript Status', value: 'Approved', icon: CheckCircle2 },
-          { label: 'Report Status', value: 'Finalized', icon: FileText },
+          { label: 'Duration', value: session.duration || '—', icon: Clock },
+          { label: 'Topics Extracted', value: String(session.topicsExtracted || 0), icon: BookOpen },
+          { label: 'Transcript Status', value: session.transcriptStatus || 'pending', icon: CheckCircle2 },
+          { label: 'Report Status', value: session.reportStatus || 'pending', icon: FileText },
         ].map((c) => (
           <div key={c.label} className="bg-card rounded-2xl border border-border p-4 shadow-card">
             <div className="flex items-center gap-2 mb-1">

@@ -1,10 +1,15 @@
 import { Link } from "react-router-dom";
-import { employees } from "@/data/mockData";
+import { useEmployees } from "@/hooks/useApi";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, Loader2 } from "lucide-react";
 
 export default function Employees() {
+  const { data: employees = [], isLoading } = useEmployees();
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center h-64"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
+  }
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
@@ -30,7 +35,7 @@ export default function Employees() {
             {employees.map((e) => (
               <tr key={e.id} className="border-b border-border last:border-0 hover:bg-accent/50 transition-colors">
                 <td className="p-3"><Link to={`/app/employees/${e.id}`} className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-primary/10 text-primary text-xs font-semibold flex items-center justify-center">{e.avatar}</div>
+                  <div className="w-8 h-8 rounded-full bg-primary/10 text-primary text-xs font-semibold flex items-center justify-center">{e.avatarInitials || e.name?.split(' ').map((n: string) => n[0]).join('')}</div>
                   <div><p className="font-medium">{e.name}</p><p className="text-xs text-muted-foreground">{e.role}</p></div>
                 </Link></td>
                 <td className="p-3 text-muted-foreground">{e.department}</td>

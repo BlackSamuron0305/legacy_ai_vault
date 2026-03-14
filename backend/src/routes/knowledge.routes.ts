@@ -1,174 +1,175 @@
-import { Router, Request, Response } from 'express';
-import { eq, desc, ilike, or, sql, count } from 'drizzle-orm';
-import { db, schema } from '../db/drizzle';
-import { logError } from '../utils/logger';
+import { Router, Response } from 'express';
+import { db } from '../db/drizzle';
+import { knowledgeCards, knowledgeCategories, employees, sessions, users } from '../db/schema';
+import { eq, sql } from 'drizzle-orm';
+import { AuthRequest, requireAuth } from '../middleware/auth';
+import { supabase } from '../db/supabase';
+import { createEmbedding } from '../services/embedding.service';
 
 const router = Router();
+router.use(requireAuth);
 
-/**
- * GET /api/knowledge/cards
- * Get all knowledge cards with joined expert info.
- */
-router.get('/cards', async (req: Request, res: Response) => {
+// GET /api/knowledge/categories
+router.get('/categories', async (req: AuthRequest, res: Response) => {
     try {
-        let query = db.select({
-            id: schema.knowledgeCards.id,
-            topic: schema.knowledgeCards.topic,
-            content: schema.knowledgeCards.content,
-            tags: schema.knowledgeCards.tags,
-            importance: schema.knowledgeCards.importance,
-            createdAt: schema.knowledgeCards.createdAt,
-            expertId: schema.experts.id,
-            expertName: schema.experts.name,
-            expertDepartment: schema.experts.department,
-            interviewId: schema.interviews.id,
-            interviewSummary: schema.interviews.summary,
+        const [user] = await db.select().from(users).where(eq(users.id, req.userId!));
+        if (!user?.workspaceId) return res.status(400).json({ error: 'No workspace' });
+
+        const cardsByCategory = await db.select({
+            category: knowledgeCards.category,
+            count: sql<number>`count(*)::int`,
+            sourceSessions: sql<number>`count(distinct ${knowledgeCards.sessionId})::int`,
         })
-            .from(schema.knowledgeCards)
-            .leftJoin(schema.experts, eq(schema.knowledgeCards.expertId, schema.experts.id))
-            .leftJoin(schema.interviews, eq(schema.knowledgeCards.interviewId, schema.interviews.id))
-            .orderBy(desc(schema.knowledgeCards.createdAt))
-            .$dynamic();
+            .from(knowledgeCards)
+            .innerJoin(sessions, eq(knowledgeCards.sessionId, sessions.id))
+            .where(eq(sessions.workspaceId, user.workspaceId))
+            .groupBy(knowledgeCards.category);
 
-        // Filter by expert
-        if (req.query.expert) {
-            query = query.where(eq(schema.knowledgeCards.expertId, req.query.expert as string));
-        }
+        const customCats = await db.select().from(knowledgeCategories)
+            .where(eq(knowledgeCategories.workspaceId, user.workspaceId));
 
-        const cards = await query;
-        res.json(cards);
-    } catch (error) {
-        logError('Failed to get knowledge cards', error);
-        res.status(500).json({ error: 'Failed to get knowledge cards' });
+        const result = cardsByCategory.map(c => {
+            const custom = customCats.find(cc => cc.name === c.category);
+            return {
+                id: custom?.id || c.category,
+                name: c.category || 'Uncategorized',
+                icon: custom?.icon || 'folder',
+                count: c.count,
+                completeness: Math.min(100, c.count * 10),
+                sourceSessions: c.sourceSessions,
+                status: custom?.status || 'draft',
+            };
+        });
+
+        res.json(result);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
     }
 });
 
-/**
- * GET /api/knowledge/search
- * Full-text search across knowledge cards.
- */
-router.get('/search', async (req: Request, res: Response) => {
+// GET /api/knowledge/cards
+router.get('/cards', async (req: AuthRequest, res: Response) => {
     try {
-        const q = req.query.q as string;
-        if (!q) {
-            res.status(400).json({ error: 'Query parameter q is required' });
-            return;
-        }
+        const [user] = await db.select().from(users).where(eq(users.id, req.userId!));
+        if (!user?.workspaceId) return res.status(400).json({ error: 'No workspace' });
 
-        const searchPattern = `%${q}%`;
-
-        const results = await db.select({
-            id: schema.knowledgeCards.id,
-            topic: schema.knowledgeCards.topic,
-            content: schema.knowledgeCards.content,
-            tags: schema.knowledgeCards.tags,
-            importance: schema.knowledgeCards.importance,
-            createdAt: schema.knowledgeCards.createdAt,
-            expertName: schema.experts.name,
-            expertDepartment: schema.experts.department,
+        const result = await db.select({
+            card: knowledgeCards,
+            employeeName: employees.name,
+            employeeDepartment: employees.department,
         })
-            .from(schema.knowledgeCards)
-            .leftJoin(schema.experts, eq(schema.knowledgeCards.expertId, schema.experts.id))
-            .where(or(
-                ilike(schema.knowledgeCards.topic, searchPattern),
-                ilike(schema.knowledgeCards.content, searchPattern)
-            ))
-            .orderBy(desc(schema.knowledgeCards.createdAt))
-            .limit(20);
+            .from(knowledgeCards)
+            .leftJoin(employees, eq(knowledgeCards.employeeId, employees.id))
+            .innerJoin(sessions, eq(knowledgeCards.sessionId, sessions.id))
+            .where(eq(sessions.workspaceId, user.workspaceId));
 
-        res.json(results);
-    } catch (error) {
-        logError('Failed to search knowledge cards', error);
-        res.status(500).json({ error: 'Search failed' });
+        res.json(result.map(r => ({
+            ...r.card,
+            expertName: r.employeeName,
+            expertDepartment: r.employeeDepartment,
+        })));
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
     }
 });
 
-/**
- * GET /api/knowledge/stats
- * Get vault statistics.
- */
-router.get('/stats', async (_req: Request, res: Response) => {
+// GET /api/knowledge/stats
+router.get('/stats', async (req: AuthRequest, res: Response) => {
     try {
-        const [cardCount] = await db.select({ count: count() }).from(schema.knowledgeCards);
-        const [expertCount] = await db.select({ count: count() }).from(schema.experts);
-        const [interviewCount] = await db.select({ count: count() })
-            .from(schema.interviews)
-            .where(eq(schema.interviews.status, 'completed'));
+        const [user] = await db.select().from(users).where(eq(users.id, req.userId!));
+        if (!user?.workspaceId) return res.status(400).json({ error: 'No workspace' });
 
-        const depts = await db.selectDistinct({ department: schema.experts.department })
-            .from(schema.experts)
-            .where(sql`${schema.experts.department} IS NOT NULL`);
+        const [cardCount] = await db.select({ count: sql<number>`count(*)::int` }).from(knowledgeCards)
+            .innerJoin(sessions, eq(knowledgeCards.sessionId, sessions.id))
+            .where(eq(sessions.workspaceId, user.workspaceId));
+
+        const [empCount] = await db.select({ count: sql<number>`count(*)::int` }).from(employees)
+            .where(eq(employees.workspaceId, user.workspaceId));
+
+        const [sessionCount] = await db.select({ count: sql<number>`count(*)::int` }).from(sessions)
+            .where(eq(sessions.workspaceId, user.workspaceId));
 
         res.json({
-            total_cards: cardCount.count,
-            total_experts: expertCount.count,
-            total_interviews: interviewCount.count,
-            total_departments: depts.length,
+            totalCards: cardCount?.count || 0,
+            totalEmployees: empCount?.count || 0,
+            totalSessions: sessionCount?.count || 0,
         });
-    } catch (error) {
-        logError('Failed to get stats', error);
-        res.status(500).json({ error: 'Failed to get stats' });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
     }
 });
 
-/**
- * GET /api/knowledge/experts
- * Get all experts with card counts.
- */
-router.get('/experts', async (_req: Request, res: Response) => {
+// GET /api/knowledge/:categoryName — cards for a category
+router.get('/:categoryName', async (req: AuthRequest, res: Response) => {
     try {
-        const expertsData = await db.select({
-            id: schema.experts.id,
-            name: schema.experts.name,
-            department: schema.experts.department,
-            specialization: schema.experts.specialization,
-            createdAt: schema.experts.createdAt,
-            cardCount: count(schema.knowledgeCards.id),
-        })
-            .from(schema.experts)
-            .leftJoin(schema.knowledgeCards, eq(schema.experts.id, schema.knowledgeCards.expertId))
-            .groupBy(schema.experts.id)
-            .orderBy(desc(schema.experts.createdAt));
-
-        res.json(expertsData);
-    } catch (error) {
-        logError('Failed to get experts', error);
-        res.status(500).json({ error: 'Failed to get experts' });
-    }
-});
-
-/**
- * GET /api/knowledge/experts/:id
- * Get a single expert with their cards.
- */
-router.get('/experts/:id', async (req: Request, res: Response) => {
-    try {
-        const [expert] = await db.select()
-            .from(schema.experts)
-            .where(eq(schema.experts.id, req.params.id))
-            .limit(1);
-
-        if (!expert) {
-            res.status(404).json({ error: 'Expert not found' });
-            return;
-        }
-
         const cards = await db.select({
-            id: schema.knowledgeCards.id,
-            topic: schema.knowledgeCards.topic,
-            content: schema.knowledgeCards.content,
-            tags: schema.knowledgeCards.tags,
-            importance: schema.knowledgeCards.importance,
-            createdAt: schema.knowledgeCards.createdAt,
+            card: knowledgeCards,
+            employeeName: employees.name,
         })
-            .from(schema.knowledgeCards)
-            .where(eq(schema.knowledgeCards.expertId, req.params.id))
-            .orderBy(desc(schema.knowledgeCards.createdAt));
+            .from(knowledgeCards)
+            .leftJoin(employees, eq(knowledgeCards.employeeId, employees.id))
+            .where(eq(knowledgeCards.category, decodeURIComponent(req.params.categoryName)));
 
-        res.json({ ...expert, cards });
-    } catch (error) {
-        logError('Failed to get expert', error);
-        res.status(500).json({ error: 'Failed to get expert' });
+        res.json({
+            category: decodeURIComponent(req.params.categoryName),
+            blocks: cards.map(c => ({ ...c.card, expertName: c.employeeName })),
+        });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// POST /api/knowledge/:categoryName/chat — AI chat about category
+router.post('/:categoryName/chat', async (req: AuthRequest, res: Response) => {
+    try {
+        const { question, history } = req.body;
+
+        const cards = await db.select().from(knowledgeCards)
+            .where(eq(knowledgeCards.category, decodeURIComponent(req.params.categoryName)));
+
+        const context = cards.map(c =>
+            `Topic: ${c.topic}\nContent: ${c.content}\nTags: ${c.tags?.join(', ')}`
+        ).join('\n\n---\n\n');
+
+        const OpenAI = (await import('openai')).default;
+        const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+        const messages: any[] = [
+            { role: 'system', content: `You are a knowledge assistant. Answer based on these knowledge cards:\n\n${context}\n\nOnly answer from available information. Cite sources.` },
+            ...(history || []),
+            { role: 'user', content: question },
+        ];
+
+        const completion = await openai.chat.completions.create({
+            model: 'gpt-4o-mini',
+            messages,
+        });
+
+        res.json({
+            answer: completion.choices[0].message.content,
+            sources: cards.map(c => ({ id: c.id, topic: c.topic })),
+        });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// POST /api/knowledge/search — vector search
+router.post('/search', async (req: AuthRequest, res: Response) => {
+    try {
+        const { query } = req.body;
+        const embedding = await createEmbedding(query);
+
+        const { data, error } = await supabase.rpc('search_knowledge', {
+            query_embedding: embedding,
+            match_threshold: 0.65,
+            match_count: 10,
+        });
+
+        if (error) throw error;
+        res.json(data);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
     }
 });
 

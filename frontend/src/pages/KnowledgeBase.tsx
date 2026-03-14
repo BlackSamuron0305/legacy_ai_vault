@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
-import { knowledgeCategories } from "@/data/mockData";
+import { useKnowledgeCategories } from "@/hooks/useApi";
 import { StatusBadge } from "@/components/common/StatusBadge";
-import { BookOpen, Workflow, Handshake, Server, AlertTriangle, Users, History, Star, User, Shield } from "lucide-react";
+import { BookOpen, Workflow, Handshake, Server, AlertTriangle, Users, History, Star, User, Shield, Loader2 } from "lucide-react";
 
 const iconMap: Record<string, React.ReactNode> = {
   workflow: <Workflow className="w-5 h-5" />,
@@ -17,6 +17,11 @@ const iconMap: Record<string, React.ReactNode> = {
 };
 
 export default function KnowledgeBase() {
+  const { data: knowledgeCategories = [], isLoading } = useKnowledgeCategories();
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center h-64"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
+  }
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       <div>

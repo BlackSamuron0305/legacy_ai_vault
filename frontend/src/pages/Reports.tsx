@@ -1,10 +1,15 @@
 import { Link } from "react-router-dom";
-import { reports } from "@/data/mockData";
+import { useReports } from "@/hooks/useApi";
 import { StatusBadge } from "@/components/common/StatusBadge";
-import { FileText, Download, Eye } from "lucide-react";
+import { FileText, Download, Eye, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function Reports() {
+  const { data: reports = [], isLoading } = useReports();
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center h-64"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
+  }
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       <div>

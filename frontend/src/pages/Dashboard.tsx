@@ -1,13 +1,22 @@
 import { Link } from "react-router-dom";
 import { StatCard } from "@/components/common/StatCard";
 import { StatusBadge } from "@/components/common/StatusBadge";
-import { sessions, employees, activityFeed } from "@/data/mockData";
-import { Mic, FileCheck, BookOpen, Upload, AlertTriangle, Users, Clock, ArrowRight } from "lucide-react";
+import { useSessions, useEmployees, useActivityFeed } from "@/hooks/useApi";
+import { Mic, FileCheck, BookOpen, Upload, AlertTriangle, Users, Clock, ArrowRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function Dashboard() {
-  const awaitingReview = sessions.filter(s => s.status === 'awaiting_review' || s.status === 'awaiting_approval');
-  const pendingEmployees = employees.filter(e => e.sessionStatus === 'not_started' || e.sessionStatus === 'scheduled');
+  const { data: sessions = [], isLoading: sessionsLoading } = useSessions();
+  const { data: employees = [], isLoading: employeesLoading } = useEmployees();
+  const { data: activityFeed = [] } = useActivityFeed();
+
+  const awaitingReview = sessions.filter((s: any) => s.status === 'awaiting_review' || s.status === 'awaiting_approval');
+  const pendingEmployees = employees.filter((e: any) => e.sessionStatus === 'not_started' || e.sessionStatus === 'scheduled');
+  const completedSessions = sessions.filter((s: any) => s.status === 'finalized').length;
+
+  if (sessionsLoading || employeesLoading) {
+    return <div className="flex items-center justify-center h-64"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
+  }
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
@@ -22,8 +31,8 @@ export default function Dashboard() {
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard label="Employees Pending" value={pendingEmployees.length} icon={<Users className="w-5 h-5" />} change="+2 this week" trend="up" />
-        <StatCard label="Sessions Completed" value={4} icon={<Mic className="w-5 h-5" />} change="67% completion" trend="up" />
-        <StatCard label="Transcripts Awaiting" value={awaitingReview.length} icon={<FileCheck className="w-5 h-5" />} change="Action needed" trend="neutral" />
+        <StatCard label="Sessions Completed" value={completedSessions} icon={<Mic className="w-5 h-5" />} change={`${sessions.length} total`} trend="up" />
+        <StatCard label="Transcripts Awaiting" value={awaitingReview.length} icon={<FileCheck className="w-5 h-5" />} change={awaitingReview.length > 0 ? "Action needed" : "All clear"} trend="neutral" />
         <StatCard label="Reports Finalized" value={3} icon={<BookOpen className="w-5 h-5" />} change="+1 this week" trend="up" />
       </div>
 
@@ -115,7 +124,7 @@ export default function Dashboard() {
                 <tr key={e.id} className="border-b border-border last:border-0 hover:bg-accent/50 transition-colors">
                   <td className="p-3">
                     <Link to={`/app/employees/${e.id}`} className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-full bg-primary/10 text-primary text-xs font-semibold flex items-center justify-center">{e.avatar}</div>
+                      <div className="w-7 h-7 rounded-full bg-primary/10 text-primary text-xs font-semibold flex items-center justify-center">{e.avatarInitials || e.name?.split(' ').map((n: string) => n[0]).join('')}</div>
                       <div>
                         <p className="font-medium">{e.name}</p>
                         <p className="text-xs text-muted-foreground">{e.role}</p>

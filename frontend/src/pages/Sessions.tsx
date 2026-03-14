@@ -1,16 +1,21 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { sessions } from "@/data/mockData";
+import { useSessions } from "@/hooks/useApi";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { Button } from "@/components/ui/button";
-import { Plus, Search, Filter } from "lucide-react";
+import { Plus, Search, Filter, Loader2 } from "lucide-react";
 
 const filters = ['All', 'Scheduled', 'In Progress', 'Awaiting Review', 'Awaiting Approval', 'Processing', 'Finalized'];
 
 export default function Sessions() {
   const [activeFilter, setActiveFilter] = useState('All');
+  const { data: sessions = [], isLoading } = useSessions();
 
-  const filtered = activeFilter === 'All' ? sessions : sessions.filter(s => {
+  if (isLoading) {
+    return <div className="flex items-center justify-center h-64"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
+  }
+
+  const filtered = activeFilter === 'All' ? sessions : sessions.filter((s: any) => {
     const map: Record<string, string> = { 'Scheduled': 'scheduled', 'In Progress': 'in_progress', 'Awaiting Review': 'awaiting_review', 'Awaiting Approval': 'awaiting_approval', 'Processing': 'processing', 'Finalized': 'finalized' };
     return s.status === map[activeFilter];
   });

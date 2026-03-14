@@ -1,12 +1,18 @@
 import { Link, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/common/StatusBadge";
-import { employees, sessions, extractedTopics } from "@/data/mockData";
-import { ArrowLeft, Mic, AlertCircle } from "lucide-react";
+import { useEmployee } from "@/hooks/useApi";
+import { ArrowLeft, Mic, AlertCircle, Loader2 } from "lucide-react";
 
 export default function EmployeeDetail() {
-  const emp = employees[0];
-  const empSessions = sessions.filter(s => s.employeeId === emp.id);
+  const { id } = useParams();
+  const { data: emp, isLoading } = useEmployee(id!);
+
+  if (isLoading || !emp) {
+    return <div className="flex items-center justify-center h-64"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
+  }
+
+  const empSessions = emp.sessions || [];
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
       <div className="flex items-center gap-3">
@@ -39,10 +45,11 @@ export default function EmployeeDetail() {
         </div>
         <div className="space-y-4">
           <div className="bg-card rounded-2xl border border-border shadow-card p-4">
-            <h2 className="font-semibold text-sm mb-3">Knowledge Categories Captured</h2>
-            <div className="space-y-2">{extractedTopics.slice(0,6).map(t=>(
-              <div key={t.name} className="flex justify-between text-sm"><span>{t.category}</span><span className="text-muted-foreground">{Math.round(t.confidence*100)}%</span></div>
-            ))}</div>
+            <h2 className="font-semibold text-sm mb-3">Session Summary</h2>
+            <div className="space-y-2 text-sm text-muted-foreground">
+              <p>{empSessions.length} session{empSessions.length !== 1 ? 's' : ''} recorded</p>
+              <p>Coverage: {emp.coverageScore || 0}%</p>
+            </div>
           </div>
           <div className="bg-card rounded-2xl border border-border shadow-card p-4">
             <h3 className="font-semibold text-sm mb-3 flex items-center gap-2"><AlertCircle className="w-4 h-4 text-warning"/>Unresolved Gaps</h3>

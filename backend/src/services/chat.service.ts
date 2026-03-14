@@ -1,6 +1,7 @@
 import OpenAI from 'openai';
 import { eq, asc } from 'drizzle-orm';
-import { db, schema } from '../db/drizzle';
+import { db } from '../db/drizzle';
+import { chatMessages } from '../db/schema';
 import { supabase } from '../db/supabase';
 import { buildChatbotPrompt } from '../prompts/chatbot';
 import { createEmbedding } from './embedding.service';
@@ -85,7 +86,7 @@ export async function askQuestion(question: string, sessionId?: string): Promise
 
     // 5. Save chat messages via Drizzle
     const sourceIds = sources.map(s => s.id);
-    await db.insert(schema.chatMessages).values([
+    await db.insert(chatMessages).values([
         { sessionId: sid, role: 'user', content: question },
         { sessionId: sid, role: 'assistant', content: answer, sources: sourceIds },
     ]);
@@ -100,7 +101,7 @@ export async function askQuestion(question: string, sessionId?: string): Promise
  */
 export async function getChatHistory(sessionId: string) {
     return db.select()
-        .from(schema.chatMessages)
-        .where(eq(schema.chatMessages.sessionId, sessionId))
-        .orderBy(asc(schema.chatMessages.createdAt));
+        .from(chatMessages)
+        .where(eq(chatMessages.sessionId, sessionId))
+        .orderBy(asc(chatMessages.createdAt));
 }
