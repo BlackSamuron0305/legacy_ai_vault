@@ -131,8 +131,10 @@ router.post('/:categoryName/chat', async (req: AuthRequest, res: Response) => {
             `Topic: ${c.topic}\nContent: ${c.content}\nTags: ${c.tags?.join(', ')}`
         ).join('\n\n---\n\n');
 
-        const OpenAI = (await import('openai')).default;
-        const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+        const hfToken = process.env.HUGGINGFACE_API_TOKEN;
+        if (!hfToken) {
+            return res.status(500).json({ error: 'Missing HUGGINGFACE_API_TOKEN in environment variables' });
+        }
 
         const messages: any[] = [
             { role: 'system', content: `You are a knowledge assistant. Answer based on these knowledge cards:\n\n${context}\n\nOnly answer from available information. Cite sources.` },
@@ -140,13 +142,30 @@ router.post('/:categoryName/chat', async (req: AuthRequest, res: Response) => {
             { role: 'user', content: question },
         ];
 
-        const completion = await openai.chat.completions.create({
-            model: 'gpt-4o-mini',
-            messages,
+        const response = await fetch('https://router.huggingface.co/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${hfToken}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                model: 'Qwen/Qwen2.5-72B-Instruct',
+                messages,
+                temperature: 0.3,
+                max_tokens: 1200,
+            }),
         });
 
+        if (!response.ok) {
+            const body = await response.text();
+            return res.status(502).json({ error: `Hugging Face API error: ${response.status} ${body}` });
+        }
+
+        const completion = await response.json() as any;
+        const answer = completion?.choices?.[0]?.message?.content || 'No answer returned.';
+
         res.json({
-            answer: completion.choices[0].message.content,
+            answer,
             sources: cards.map(c => ({ id: c.id, topic: c.topic })),
         });
     } catch (error: any) {

@@ -26,7 +26,9 @@ export default function SessionDetail() {
           </div>
           <p className="text-sm text-muted-foreground">{session.employeeName} · {session.employeeRole} · {session.department}</p>
         </div>
+        <Button size="sm" asChild><Link to={`/app/sessions/${id}/interview`}><MessageSquare className="w-4 h-4" /> Start Session</Link></Button>
         <Button variant="outline" size="sm" asChild><Link to={`/app/sessions/${id}/review`}><FileText className="w-4 h-4" /> Review</Link></Button>
+        <Button variant="outline" size="sm" asChild><Link to={`/app/sessions/${id}/classification`}><AlertCircle className="w-4 h-4" /> Classification</Link></Button>
       </div>
 
       {/* Summary Cards */}
@@ -53,7 +55,7 @@ export default function SessionDetail() {
           <div className="p-4 border-b border-border flex items-center justify-between">
             <h2 className="font-semibold text-sm">Transcript</h2>
             <Button variant="ghost" size="sm" asChild>
-              <Link to="/app/sessions/s1/review">Full Review <ExternalLink className="w-3 h-3" /></Link>
+              <Link to={`/app/sessions/${id}/review`}>Full Review <ExternalLink className="w-3 h-3" /></Link>
             </Button>
           </div>
           <div className="max-h-[500px] overflow-y-auto p-4 space-y-3">
