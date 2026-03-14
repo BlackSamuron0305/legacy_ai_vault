@@ -15,11 +15,9 @@ export default function Landing() {
       {/* Header */}
       <header className="border-b border-border/50 bg-background/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-              <Brain className="w-4 h-4 text-primary-foreground" />
-            </div>
-            <span className="font-semibold text-lg tracking-tight">LegacyAI</span>
+          <Link to="/" className="flex items-center gap-3">
+            <img src="/logo-icon.svg" alt="LegacyAI icon" className="h-8 w-8 shrink-0 dark:invert" />
+            <span className="text-sm font-semibold text-foreground">Legacy AI</span>
           </Link>
           <nav className="hidden md:flex items-center gap-8 text-sm text-muted-foreground">
             <a href="#features" className="hover:text-foreground transition-colors">Features</a>
@@ -52,7 +50,7 @@ export default function Landing() {
                 <Link to="/register">Start Capturing Knowledge <ArrowRight className="w-4 h-4" /></Link>
               </Button>
               <Button size="xl" variant="hero-outline" asChild>
-                <Link to="/app/demo">See Demo</Link>
+                <Link to="/demo">See Demo</Link>
               </Button>
             </div>
           </motion.div>
@@ -221,11 +219,9 @@ export default function Landing() {
         <div className="max-w-6xl mx-auto px-6">
           <div className="flex flex-col md:flex-row justify-between items-start gap-8">
             <div>
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
-                  <Brain className="w-3.5 h-3.5 text-primary-foreground" />
-                </div>
-                <span className="font-semibold tracking-tight">LegacyAI</span>
+              <div className="flex items-center gap-3">
+                <img src="/logo-icon.svg" alt="LegacyAI icon" className="h-7 w-7 shrink-0 dark:invert" />
+                <span className="text-sm font-semibold text-foreground">Legacy AI</span>
               </div>
               <p className="mt-2 text-sm text-muted-foreground">AI-powered institutional knowledge preservation.</p>
             </div>

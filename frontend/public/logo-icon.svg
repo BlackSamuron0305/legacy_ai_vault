@@ -1,0 +1,17 @@
+<svg width="80" height="80" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>.logo-fill { fill: #111827; }</style>
+  </defs>
+  <!-- connecting lines -->
+  <line x1="40" y1="40" x2="18" y2="18" stroke="#111827" stroke-width="3" stroke-linecap="round"/>
+  <line x1="40" y1="40" x2="62" y2="18" stroke="#111827" stroke-width="3" stroke-linecap="round"/>
+  <line x1="40" y1="40" x2="18" y2="62" stroke="#111827" stroke-width="3" stroke-linecap="round"/>
+  <line x1="40" y1="40" x2="62" y2="62" stroke="#111827" stroke-width="3" stroke-linecap="round"/>
+  <!-- center node -->
+  <circle class="logo-fill" cx="40" cy="40" r="7"/>
+  <!-- outer nodes -->
+  <circle class="logo-fill" cx="18" cy="18" r="6"/>
+  <circle class="logo-fill" cx="62" cy="18" r="6"/>
+  <circle class="logo-fill" cx="18" cy="62" r="6"/>
+  <circle class="logo-fill" cx="62" cy="62" r="6"/>
+</svg>

@@ -52,6 +52,7 @@ const AppRoutes = () => (
       <Route path="/register" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/onboarding" element={<Onboarding />} />
+      <Route path="/demo" element={<DemoMode />} />
 
       {/* App (Protected) */}
       <Route path="/app" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
@@ -71,7 +72,7 @@ const AppRoutes = () => (
         <Route path="employees" element={<Employees />} />
         <Route path="employees/:id" element={<EmployeeDetail />} />
         <Route path="analytics" element={<Analytics />} />
-        <Route path="demo" element={<DemoMode />} />
+
         <Route path="settings" element={<Settings />}>
           <Route index element={<SettingsProfile />} />
           <Route path="account" element={<SettingsAccount />} />

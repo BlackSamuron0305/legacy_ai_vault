@@ -1,9 +1,10 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import {
-  LayoutDashboard, Mic, BookOpen, FileText, Upload, Users, BarChart3, Play, Settings, ChevronLeft, Brain
+  LayoutDashboard, Mic, BookOpen, FileText, Upload, Users, BarChart3, Settings, ChevronLeft, Brain, LogOut
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
 
 const navItems = [
   { title: "Dashboard", url: "/app", icon: LayoutDashboard },
@@ -13,7 +14,6 @@ const navItems = [
   { title: "Exports", url: "/app/exports", icon: Upload },
   { title: "Employees", url: "/app/employees", icon: Users },
   { title: "Analytics", url: "/app/analytics", icon: BarChart3 },
-  { title: "Demo Mode", url: "/app/demo", icon: Play },
 ];
 
 interface AppSidebarProps {
@@ -23,17 +23,30 @@ interface AppSidebarProps {
 
 export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { logout } = useAuth();
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
+  };
 
   return (
     <aside className={cn(
       "h-screen flex flex-col border-r border-border bg-sidebar transition-all duration-200 shrink-0",
       collapsed ? "w-16" : "w-60"
     )}>
-      <div className={cn("p-4 flex items-center gap-2", collapsed ? "justify-center" : "")}>
-        <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shrink-0">
-          <Brain className="w-4 h-4 text-primary-foreground" />
-        </div>
-        {!collapsed && <span className="font-semibold text-foreground text-lg tracking-tight">LegacyAI</span>}
+      <div className={cn("p-4 flex items-center", collapsed ? "justify-center" : "")}>
+        {collapsed ? (
+          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shrink-0">
+            <Brain className="w-4 h-4 text-primary-foreground" />
+          </div>
+        ) : (
+          <div className="flex items-center gap-3">
+            <img src="/logo-icon.svg" alt="LegacyAI icon" className="h-8 w-8 shrink-0 dark:invert" />
+            <span className="text-sm font-semibold text-foreground leading-tight">Legacy AI</span>
+          </div>
+        )}
       </div>
 
       <nav className="flex-1 px-2 space-y-0.5 mt-2">
@@ -71,6 +84,16 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
           <Settings className="w-[18px] h-[18px] shrink-0" />
           {!collapsed && <span>Settings</span>}
         </Link>
+        <button
+          onClick={handleLogout}
+          className={cn(
+            "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors",
+            collapsed && "justify-center px-2"
+          )}
+        >
+          <LogOut className="w-[18px] h-[18px] shrink-0" />
+          {!collapsed && <span>Logout</span>}
+        </button>
         <Button
           variant="ghost"
           size="sm"

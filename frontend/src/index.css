@@ -114,3 +114,47 @@
 .animate-pulse-ring {
   animation: pulse-ring 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
+
+/* Auth page animations */
+@keyframes auth-float {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  33% { transform: translateY(-12px) rotate(1deg); }
+  66% { transform: translateY(6px) rotate(-1deg); }
+}
+@keyframes auth-float-delay {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  33% { transform: translateY(8px) rotate(-1deg); }
+  66% { transform: translateY(-10px) rotate(1deg); }
+}
+@keyframes auth-pulse-slow {
+  0%, 100% { opacity: 0.15; transform: scale(1); }
+  50% { opacity: 0.3; transform: scale(1.05); }
+}
+@keyframes auth-drift {
+  0% { transform: translate(0, 0); }
+  25% { transform: translate(10px, -15px); }
+  50% { transform: translate(-5px, -25px); }
+  75% { transform: translate(-15px, -10px); }
+  100% { transform: translate(0, 0); }
+}
+@keyframes auth-fade-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes auth-line-draw {
+  from { stroke-dashoffset: 200; }
+  to { stroke-dashoffset: 0; }
+}
+
+
+
+.animate-auth-float { animation: auth-float 6s ease-in-out infinite; }
+.animate-auth-float-delay { animation: auth-float-delay 7s ease-in-out infinite; }
+.animate-auth-pulse-slow { animation: auth-pulse-slow 4s ease-in-out infinite; }
+.animate-auth-drift { animation: auth-drift 20s ease-in-out infinite; }
+.animate-auth-fade-up { animation: auth-fade-up 0.6s ease-out both; }
+.auth-delay-1 { animation-delay: 0.1s; }
+.auth-delay-2 { animation-delay: 0.2s; }
+.auth-delay-3 { animation-delay: 0.3s; }
+.auth-delay-4 { animation-delay: 0.4s; }
+.auth-delay-5 { animation-delay: 0.5s; }
