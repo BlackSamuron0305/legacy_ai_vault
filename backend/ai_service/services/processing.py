@@ -21,9 +21,8 @@ class ProcessingService:
             return ""
 
         # Basic cleaning (regex based)
-        _cleaned_text = re.sub(r'\[.*?\]', '', transcript) # Remove [Music], [Laughter] etc.
-        # Preserve newlines for structure, just clean up extra spaces within lines
-        cleaned_lines = [line.strip() for line in transcript.split('\n') if line.strip()]
+        cleaned_text = re.sub(r'\[.*?\]', '', transcript)
+        cleaned_lines = [line.strip() for line in cleaned_text.split('\n') if line.strip()]
         return '\n'.join(cleaned_lines)
 
     def format_transcript(self, transcript):
@@ -140,15 +139,19 @@ class ProcessingService:
         user_content = text # The caller should format this with get_chunk_prompt if needed
 
         payload = {
-            "model": model, 
+            "model": model,
             "messages": [
                 {
-                    "role": "user", 
-                    "content": f"{system_content}\n\n{user_content}"
+                    "role": "system",
+                    "content": system_content
+                },
+                {
+                    "role": "user",
+                    "content": user_content
                 }
             ],
-            "max_tokens": 2000, 
-            "temperature": 0.2 
+            "max_tokens": 2000,
+            "temperature": 0.2
         }
         
         url = self.chat_url

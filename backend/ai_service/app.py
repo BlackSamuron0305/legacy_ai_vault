@@ -6,8 +6,8 @@ from services.elevenlabs import ElevenLabsService
 from services.processing import ProcessingService
 from services.classification import ClassificationService
 
-# Load environment variables
-load_dotenv()
+# Load environment from root .env (two levels up from this file)
+load_dotenv(os.path.join(os.path.dirname(__file__), '..', '..', '.env'))
 
 app = Flask(__name__)
 log_level = os.getenv("LOG_LEVEL", "INFO").upper()

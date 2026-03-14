@@ -28,6 +28,44 @@ export function buildAgentConfig(name: string, specialization: string): AgentCon
 }
 
 /**
+ * Fetch the most recent conversation ID for a given agent from ElevenLabs API.
+ * Used when the embed widget handles the conversation and the frontend
+ * doesn't have access to the conversation ID.
+ */
+export async function getLatestConversationId(agentId: string): Promise<string | null> {
+    const apiKey = process.env.ELEVENLABS_API_KEY;
+    if (!apiKey) {
+        throw new Error('Missing ELEVENLABS_API_KEY');
+    }
+
+    try {
+        const response = await fetch(
+            `https://api.elevenlabs.io/v1/convai/conversations?agent_id=${encodeURIComponent(agentId)}`,
+            {
+                headers: { 'xi-api-key': apiKey },
+            }
+        );
+
+        if (!response.ok) {
+            throw new Error(`ElevenLabs API error: ${response.status} ${response.statusText}`);
+        }
+
+        const data: any = await response.json();
+        const conversations = data.conversations;
+
+        if (!Array.isArray(conversations) || conversations.length === 0) {
+            log('No conversations found for agent', { agentId });
+            return null;
+        }
+
+        return conversations[0].conversation_id;
+    } catch (error) {
+        logError('Failed to fetch latest conversation', error);
+        throw error;
+    }
+}
+
+/**
  * Fetch conversation transcript from ElevenLabs API after interview ends.
  */
 export async function getConversationTranscript(conversationId: string): Promise<string> {

@@ -79,10 +79,10 @@ class ClassificationService:
                 
         except requests.exceptions.RequestException as e:
             logging.error(f"Error calling classification API: {e}")
-            raise self._create_error_classification(f"API request failed: {str(e)}")
+            return self._create_error_classification(f"API request failed: {str(e)}")
         except Exception as e:
             logging.error(f"Unexpected error in classification: {e}")
-            raise self._create_error_classification(f"Classification failed: {str(e)}")
+            return self._create_error_classification(f"Classification failed: {str(e)}")
     
     def _create_fallback_classification(self, classification_text):
         """

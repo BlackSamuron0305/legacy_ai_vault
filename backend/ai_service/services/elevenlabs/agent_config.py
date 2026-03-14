@@ -16,7 +16,6 @@ def build_agent_config(
     voice_id: str = config.DEFAULT_VOICE_ID,
     model_id: str = config.DEFAULT_MODEL_ID,
     name: str = config.AGENT_NAME,
-    description: str = config.AGENT_DESCRIPTION
 ) -> Dict[str, Any]:
     """
     Constructs a documented ElevenLabs /v1/convai/agents/create payload.
@@ -31,7 +30,6 @@ def build_agent_config(
 
     return {
         "name": name,
-        "description": description,
         "tags": ["legacy-ai-vault", "offboarding", "knowledge-capture"],
         "conversation_config": {
             "agent": {
@@ -53,12 +51,18 @@ def build_agent_config(
                 "similarity_boost": 0.8,
             },
             "turn": {
-                "turn_timeout": 10,
-                "turn_eagerness": "normal",
+                "turn_timeout": 2,
+                "turn_eagerness": "eager",
             },
             "conversation": {
                 "text_only": False,
                 "max_duration_seconds": 3600,
+                "client_events": [
+                    "conversation_initiation_metadata",
+                    "audio",
+                    "interruption",
+                    "ping",
+                ],
             },
             "asr": {
                 "provider": "elevenlabs",
@@ -69,6 +73,21 @@ def build_agent_config(
             "privacy": {
                 "record_voice": True,
                 "retention_days": 30,
-            }
+            },
+            "conversation_config_override": {
+                "agent": {
+                    "first_message": True,
+                    "language": True,
+                    "prompt": {
+                        "prompt": True,
+                    },
+                },
+                "tts": {
+                    "voice_id": True,
+                    "stability": True,
+                    "speed": True,
+                    "similarity_boost": True,
+                },
+            },
         },
     }
