@@ -124,14 +124,14 @@ export default function ProcessingStatus() {
 
       {processing.reportReady ? (
         <div className="bg-success/10 border border-success/20 rounded-xl p-4 text-sm text-success">
-          Report draft is ready. You can proceed to transcript review.
+          Report draft is ready. You can proceed to classification.
         </div>
       ) : null}
 
       <div className="flex justify-end">
         {processing.reportReady ? (
           <Button asChild>
-            <Link to={`/app/sessions/${id}/review`}>Open Transcript Review <ArrowRight className="w-4 h-4" /></Link>
+            <Link to={`/app/sessions/${id}/classification`}>Open Classification <ArrowRight className="w-4 h-4" /></Link>
           </Button>
         ) : (
           <Button variant="outline" asChild>

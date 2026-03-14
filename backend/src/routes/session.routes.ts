@@ -52,17 +52,22 @@ router.post('/', async (req: AuthRequest, res: Response) => {
             status: 'scheduled',
         }).returning();
 
-        // Update employee status
-        await db.update(employees)
-            .set({ sessionStatus: 'scheduled' })
-            .where(eq(employees.id, employeeId));
+        // TEMP TEST MODE: allow creating sessions without selecting an employee.
+        // Roll back before committing production behavior.
+        let employeeName = 'No employee selected (test mode)';
+        if (employeeId) {
+            await db.update(employees)
+                .set({ sessionStatus: 'scheduled' })
+                .where(eq(employees.id, employeeId));
 
-        // Activity
-        const [emp] = await db.select().from(employees).where(eq(employees.id, employeeId));
+            const [emp] = await db.select().from(employees).where(eq(employees.id, employeeId));
+            employeeName = emp?.name || 'Employee';
+        }
+
         await db.insert(activities).values({
             workspaceId: user.workspaceId,
             type: 'session_scheduled',
-            message: `Session scheduled with ${emp?.name || 'Employee'}`,
+            message: `Session scheduled with ${employeeName}`,
         });
 
         res.status(201).json(session);
@@ -282,7 +287,11 @@ router.post('/:id/end', async (req: AuthRequest, res: Response) => {
                 };
 
                 const resolvedTranscript = processed.full_transcript || transcript || '';
-                const report = processed.report || '';
+                const report = (processed.report && processed.report.trim())
+                    ? processed.report
+                    : (resolvedTranscript
+                        ? 'Transcript captured successfully. AI report generation returned an empty response; please review transcript and rerun processing if needed.'
+                        : 'No transcript content was captured.');
 
                 log('AI processing finished', {
                     sessionId: session.id,
@@ -352,7 +361,57 @@ router.get('/:id/transcript', async (req: AuthRequest, res: Response) => {
             .where(eq(transcriptSegments.sessionId, req.params.id))
             .orderBy(transcriptSegments.orderIndex);
 
-        res.json(segments);
+        if (segments.length > 0) {
+            return res.json(segments);
+        }
+
+        // Fallback: parse transcript text stored on sessions when no normalized segments exist.
+        const [session] = await db.select().from(sessions)
+            .where(eq(sessions.id, req.params.id));
+
+        if (!session?.transcript) {
+            return res.json([]);
+        }
+
+        const lines = session.transcript.split('\n').map(l => l.trim()).filter(Boolean);
+        const parsedSegments = lines.map((line, index) => {
+            const withTimestamp = line.match(/^\[(\d{2}:\d{2}:\d{2})\]\s*(AI|Employee|Agent|User):\s*(.+)$/i);
+            if (withTimestamp) {
+                const speaker = withTimestamp[2].toLowerCase();
+                return {
+                    id: `fallback-${index}`,
+                    sessionId: req.params.id,
+                    timestamp: withTimestamp[1],
+                    speaker: speaker === 'ai' || speaker === 'agent' ? 'ai' : 'employee',
+                    text: withTimestamp[3],
+                    orderIndex: index,
+                };
+            }
+
+            const withoutTimestamp = line.match(/^(AI|Employee|Agent|User):\s*(.+)$/i);
+            if (withoutTimestamp) {
+                const speaker = withoutTimestamp[1].toLowerCase();
+                return {
+                    id: `fallback-${index}`,
+                    sessionId: req.params.id,
+                    timestamp: '--:--:--',
+                    speaker: speaker === 'ai' || speaker === 'agent' ? 'ai' : 'employee',
+                    text: withoutTimestamp[2],
+                    orderIndex: index,
+                };
+            }
+
+            return {
+                id: `fallback-${index}`,
+                sessionId: req.params.id,
+                timestamp: '--:--:--',
+                speaker: 'employee',
+                text: line,
+                orderIndex: index,
+            };
+        });
+
+        res.json(parsedSegments);
     } catch (error: any) {
         res.status(500).json({ error: error.message });
     }
@@ -413,7 +472,7 @@ router.get('/:id/processing', async (req: AuthRequest, res: Response) => {
         const steps = [
             {
                 name: 'Transcript Retrieval',
-                status: session.transcriptStatus === 'generated' ? 'completed' : (session.status === 'processing' ? 'in_progress' : 'pending'),
+                status: (session.transcriptStatus === 'generated' || session.transcriptStatus === 'approved') ? 'completed' : (session.status === 'processing' ? 'in_progress' : 'pending'),
             },
             {
                 name: 'Chunked AI Processing',
@@ -435,6 +494,61 @@ router.get('/:id/processing', async (req: AuthRequest, res: Response) => {
         });
     } catch (error: any) {
         res.status(500).json({ error: error.message });
+    }
+});
+
+// GET /api/sessions/:id/classification — classify the generated report via AI service
+router.get('/:id/classification', async (req: AuthRequest, res: Response) => {
+    try {
+        const [sessionRow] = await db.select({
+            session: sessions,
+            employeeRole: employees.role,
+            employeeDepartment: employees.department,
+        })
+            .from(sessions)
+            .leftJoin(employees, eq(sessions.employeeId, employees.id))
+            .where(eq(sessions.id, req.params.id));
+
+        if (!sessionRow) {
+            return res.status(404).json({ error: 'Session not found' });
+        }
+
+        const report = sessionRow.session.summary || sessionRow.session.transcript;
+        if (!report) {
+            return res.status(400).json({ error: 'No report or transcript available for classification' });
+        }
+
+        const employeeContext = `${sessionRow.employeeRole || 'Unknown role'} in ${sessionRow.employeeDepartment || 'Unknown department'} department`;
+        const aiServiceUrl = process.env.AI_SERVICE_URL || 'http://localhost:5000';
+
+        const response = await fetch(`${aiServiceUrl}/api/classify-report`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                report,
+                employee_context: employeeContext,
+            }),
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            return res.status(502).json({ error: `Classification failed: ${errorText || response.statusText}` });
+        }
+
+        const classification = await response.json();
+
+        await db.update(sessions)
+            .set({
+                status: 'finalized',
+                reportStatus: 'finalized',
+                lastActivity: new Date(),
+            })
+            .where(eq(sessions.id, req.params.id));
+
+        return res.json(classification);
+    } catch (error: any) {
+        logError('Session classification route failed', { sessionId: req.params.id, error: error?.message || error });
+        return res.status(500).json({ error: error.message });
     }
 });
 

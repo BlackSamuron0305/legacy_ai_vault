@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +11,14 @@ type ConversationTurn = {
   role: "agent" | "user";
   message: string;
   timestamp: string;
+};
+
+type SessionDynamicVars = {
+  employee_name: string;
+  role_title: string;
+  department: string;
+  company_name: string;
+  session_goal: string;
 };
 
 function formatElapsed(totalSeconds: number): string {
@@ -57,22 +65,43 @@ export default function Interview() {
   const navigate = useNavigate();
 
   const [recording, setRecording] = useState(true);
+  const [paused, setPaused] = useState(false);
   const [micMuted, setMicMuted] = useState(false);
   const [sessionLoading, setSessionLoading] = useState(true);
   const [sessionError, setSessionError] = useState<string | null>(null);
+  const [startWarning, setStartWarning] = useState<string | null>(null);
   const [signedUrl, setSignedUrl] = useState<string | null>(null);
+  const [sessionVars, setSessionVars] = useState<SessionDynamicVars>({
+    employee_name: "Employee",
+    role_title: "valued team member",
+    department: "your department",
+    company_name: "the company",
+    session_goal: "document your core workflows and insights",
+  });
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const [connectionState, setConnectionState] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
   const [turns, setTurns] = useState<ConversationTurn[]>([]);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [ending, setEnding] = useState(false);
   const [inputBars, setInputBars] = useState<number[]>(Array.from({ length: 60 }, () => 12));
   const [outputBars, setOutputBars] = useState<number[]>(Array.from({ length: 60 }, () => 12));
+  const kickoffSentRef = useRef(false);
 
   const conversation = useConversation({
     micMuted,
     onConnect: ({ conversationId: connectedId }) => {
       setConversationId(connectedId);
       setRecording(true);
+      setPaused(false);
+      setMicMuted(false);
+      setStartWarning(null);
+      conversation.setVolume({ volume: 1 });
+
+      if (!kickoffSentRef.current) {
+        kickoffSentRef.current = true;
+        conversation.sendContextualUpdate("Start with: 'Hello, welcome. How are you today?' then continue naturally.");
+        conversation.sendUserMessage("Hello");
+      }
     },
     onMessage: ({ role, message }) => {
       const resolvedRole = role === "agent" ? "agent" : "user";
@@ -113,21 +142,48 @@ export default function Interview() {
         // 1) Mark session as in progress
         await api.startSession(id);
 
-        // 2) Fetch signed URL from backend -> AI service -> ElevenLabs
+        // 2) Resolve runtime context for dynamic variables
+        const sessionData = await api.getSession(id);
+        const resolvedVars: SessionDynamicVars = {
+          employee_name: sessionData?.employeeName || "Employee",
+          role_title: sessionData?.employeeRole || "valued team member",
+          department: sessionData?.department || "your department",
+          company_name: "Legacy AI Vault",
+          session_goal: "capture role-specific workflows, hidden knowledge, risks, and handover advice",
+        };
+        if (active) {
+          setSessionVars(resolvedVars);
+        }
+
+        // 3) Fetch signed URL from backend -> AI service -> ElevenLabs
         const tokenResponse = await api.getSessionToken(id);
         if (!active) return;
 
         const signed = tokenResponse.signed_url;
         setSignedUrl(signed);
 
-        // 3) Start live ElevenLabs conversation from signed URL
-        const liveConversationId = await conversation.startSession({
-          signedUrl: signed,
-          connectionType: "websocket",
-        });
-        if (!active) return;
+        // Try to start automatically for a natural voice assistant experience.
+        try {
+          setConnectionState('connecting');
+          const liveConversationId = await conversation.startSession({
+            signedUrl: signed,
+            connectionType: "websocket",
+            dynamicVariables: resolvedVars,
+            overrides: {
+              agent: {
+                firstMessage: `Hello ${resolvedVars.employee_name}, welcome. How are you today?`,
+              },
+            },
+          });
+          if (!active) return;
+          setConversationId(liveConversationId);
+        } catch (startError: any) {
+          if (!active) return;
+          setStartWarning(startError?.message || "Auto-start was blocked by browser permissions. Click Start Voice to continue.");
+        } finally {
+          if (active) setConnectionState('idle');
+        }
 
-        setConversationId(liveConversationId);
       } catch (error: any) {
         if (!active) return;
         setSessionError(error?.message || "Failed to initialize interview session");
@@ -143,16 +199,42 @@ export default function Interview() {
     };
   }, [id]);
 
+  const handleStartConversation = async () => {
+    if (!signedUrl || conversation.status === "connected" || conversation.status === "connecting") return;
+
+    try {
+      setSessionError(null);
+      setStartWarning(null);
+      setConnectionState('connecting');
+      const liveConversationId = await conversation.startSession({
+        signedUrl,
+        connectionType: "websocket",
+        dynamicVariables: sessionVars,
+        overrides: {
+          agent: {
+            firstMessage: `Hello ${sessionVars.employee_name}, welcome. How are you today?`,
+          },
+        },
+      });
+      setConversationId(liveConversationId);
+    } catch (error: any) {
+      setStartWarning(error?.message || "Failed to start voice conversation. Check microphone permissions and browser audio settings.");
+    } finally {
+      setConnectionState('idle');
+    }
+  };
+
+  // Update connection state based on conversation.status
   useEffect(() => {
-    if (conversation.status !== "connected") return;
-
-    const timer = window.setInterval(() => {
-      setElapsedSeconds((prev) => prev + 1);
-    }, 1000);
-
-    return () => {
-      window.clearInterval(timer);
-    };
+    if (conversation.status === 'connecting') {
+      setConnectionState('connecting');
+    } else if (conversation.status === 'connected') {
+      setConnectionState('connected');
+    } else if (conversation.status === 'disconnected' || conversation.status === 'disconnecting') {
+      setConnectionState('error');
+    } else {
+      setConnectionState('idle');
+    }
   }, [conversation.status]);
 
   useEffect(() => {
@@ -174,8 +256,22 @@ export default function Interview() {
   }, [conversation.status]);
 
   const handleToggleRecording = () => {
-    setMicMuted((prev) => !prev);
-    setRecording((prev) => !prev);
+    if (conversation.status !== "connected") return;
+
+    if (!paused) {
+      setPaused(true);
+      setMicMuted(true);
+      setRecording(false);
+      conversation.setVolume({ volume: 0 });
+      conversation.sendContextualUpdate("User paused the conversation. Wait silently until resumed.");
+      return;
+    }
+
+    setPaused(false);
+    setMicMuted(false);
+    setRecording(true);
+    conversation.setVolume({ volume: 1 });
+    conversation.sendContextualUpdate("User resumed the conversation. Continue from where you paused.");
   };
 
   const handleEndAndProcess = async () => {
@@ -242,9 +338,9 @@ export default function Interview() {
             <span>{formatElapsed(elapsedSeconds)}</span>
           </div>
           <Button variant="outline" size="sm" onClick={handleToggleRecording} disabled={conversation.status !== "connected"}>
-            {recording ? <><Pause className="w-4 h-4" /> Pause</> : <><Mic className="w-4 h-4" /> Resume</>}
+            {!paused ? <><Pause className="w-4 h-4" /> Pause</> : <><Mic className="w-4 h-4" /> Resume</>}
           </Button>
-          <Button variant="destructive" size="sm" onClick={handleEndAndProcess} disabled={ending}>
+          <Button variant="destructive" size="sm" onClick={handleEndAndProcess} disabled={ending || conversation.status !== "connected"}>
             {ending ? <><Loader2 className="w-4 h-4 animate-spin" /> Ending...</> : <><Square className="w-4 h-4" /> End & Process</>}
           </Button>
         </div>
@@ -256,6 +352,19 @@ export default function Interview() {
           <div className="max-w-3xl mx-auto space-y-6">
             {/* Waveform */}
             <div className="bg-card rounded-2xl border border-border shadow-card p-6">
+              {startWarning ? (
+                <div className="mb-4 p-3 rounded-xl border border-amber-300 bg-amber-50 text-amber-900 text-sm">
+                  {startWarning}
+                </div>
+              ) : null}
+              {conversation.status !== "connected" && (
+                <div className="mb-4 p-3 rounded-xl border border-amber-300 bg-amber-50 text-amber-900 text-sm flex items-center justify-between gap-3">
+                  <span>{connectionState === 'connecting' ? 'Starting voice session...' : 'Click to start voice conversation and allow microphone access.'}</span>
+                  <Button size="sm" onClick={handleStartConversation} disabled={!signedUrl || connectionState === 'connecting' || conversation.status === "connecting"}>
+                    {connectionState === 'connecting' || conversation.status === "connecting" ? <><Loader2 className="w-4 h-4 animate-spin" /> Connecting...</> : <><Mic className="w-4 h-4" /> Start Voice</>}
+                  </Button>
+                </div>
+              )}
               <div className="flex items-center gap-4">
                 <div className="relative">
                   <div className="w-14 h-14 rounded-full bg-primary flex items-center justify-center">
@@ -268,7 +377,7 @@ export default function Interview() {
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
                     {recording && <div className="w-2 h-2 rounded-full bg-destructive animate-pulse" />}
-                    <span className="text-sm font-medium">{recording ? 'Recording in progress' : 'Paused'}</span>
+                    <span className="text-sm font-medium">{paused ? 'Paused' : 'Recording in progress'}</span>
                   </div>
                   {/* Waveform visualization */}
                   <div className="flex items-center gap-0.5 h-8">
@@ -322,9 +431,8 @@ export default function Interview() {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.3, delay: i * 0.05 }}
-                  className={`rounded-2xl border border-border p-5 ${
-                    seg.role === 'agent' ? 'bg-card shadow-card' : 'bg-muted/30'
-                  }`}
+                  className={`rounded-2xl border border-border p-5 ${seg.role === 'agent' ? 'bg-card shadow-card' : 'bg-muted/30'
+                    }`}
                 >
                   <div className="flex items-center gap-2 mb-3">
                     {seg.role === 'agent' ? (

@@ -73,7 +73,7 @@ When all phases are covered or the user indicates they are done, thank them prof
 """
 
 FIRST_MESSAGE = """
-Hello {{employee_name}}. I am LegacyAI, an automated interviewer designed to help capture your knowledge before you transition out of your role as {{role_title}} at {{company_name}}.
+Hello, how are you doing today? I am LegacyAI, an automated interviewer designed to help capture your knowledge before you transition out of your role as {{role_title}} at {{company_name}}.
 
 Our goal today is to {{session_goal}}.
 
