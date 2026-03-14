@@ -1,4 +1,3 @@
-import OpenAI from 'openai';
 import { eq, asc } from 'drizzle-orm';
 import { db } from '../db/drizzle';
 import { chatMessages } from '../db/schema';
@@ -7,8 +6,7 @@ import { buildChatbotPrompt } from '../prompts/chatbot';
 import { createEmbedding } from './embedding.service';
 import { log, logError } from '../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
-
-const openai = new OpenAI();
+import { createHfChatCompletion } from './hf.service';
 
 interface ChatSource {
     id: string;
@@ -63,16 +61,16 @@ export async function askQuestion(question: string, sessionId?: string): Promise
         const prompt = buildChatbotPrompt(context);
 
         // 4. LLM generates answer with context
-        const completion = await openai.chat.completions.create({
-            model: 'gpt-4o-mini',
+        const answerText = await createHfChatCompletion({
             messages: [
                 { role: 'system', content: prompt },
                 { role: 'user', content: question },
             ],
             temperature: 0.4,
+            maxTokens: 1200,
         });
 
-        answer = completion.choices[0].message.content || 'Entschuldigung, ich konnte keine Antwort generieren.';
+        answer = answerText || 'Entschuldigung, ich konnte keine Antwort generieren.';
 
         for (const card of relevantCards) {
             sources.push({

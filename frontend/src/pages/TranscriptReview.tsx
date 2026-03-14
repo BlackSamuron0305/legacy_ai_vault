@@ -1,13 +1,76 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useMemo, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { transcriptSegments, extractedTopics } from "@/data/mockData";
-import { AlertTriangle, CheckCircle2, Edit3, Flag, RotateCcw, Save, ArrowRight, Shield } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Edit3, Flag, RotateCcw, Save, Shield, Loader2 } from "lucide-react";
+import { useApproveTranscript, useSession, useSessionTopics } from "@/hooks/useApi";
+
+type ParsedSegment = {
+  timestamp: string;
+  speaker: "ai" | "employee";
+  text: string;
+};
+
+function parseTranscriptToSegments(transcript?: string | null): ParsedSegment[] {
+  if (!transcript) return [];
+  return transcript
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const match = line.match(/^\[(\d{2}:\d{2}:\d{2})\]\s*(AI|Employee):\s*(.+)$/i);
+      if (match) {
+        return {
+          timestamp: match[1],
+          speaker: match[2].toLowerCase() === "ai" ? "ai" : "employee",
+          text: match[3],
+        };
+      }
+
+      const fallback = line.match(/^(Agent|User):\s*(.+)$/i);
+      if (fallback) {
+        return {
+          timestamp: "--:--:--",
+          speaker: fallback[1].toLowerCase() === "agent" ? "ai" : "employee",
+          text: fallback[2],
+        };
+      }
+
+      return {
+        timestamp: "--:--:--",
+        speaker: "employee",
+        text: line,
+      };
+    });
+}
 
 export default function TranscriptReview() {
-  const [approved, setApproved] = useState(false);
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const { data: session, isLoading } = useSession(id || "");
+  const { data: extractedTopics = [] } = useSessionTopics(id || "");
+  const approveTranscript = useApproveTranscript();
+
   const [showConfirm, setShowConfirm] = useState(false);
+
+  const transcriptSegments = useMemo(() => parseTranscriptToSegments(session?.transcript), [session?.transcript]);
+
+  const handleApprove = async () => {
+    if (!id) return;
+    await approveTranscript.mutateAsync(id);
+    navigate(`/app/sessions/${id}/processing`);
+  };
+
+  if (isLoading || !session) {
+    return (
+      <div className="min-h-[calc(100vh-3.5rem)] flex items-center justify-center p-6">
+        <div className="text-sm text-muted-foreground flex items-center gap-2">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          Loading transcript review...
+        </div>
+      </div>
+    );
+  }
 
   if (showConfirm) {
     return (
@@ -25,16 +88,17 @@ export default function TranscriptReview() {
           <div className="bg-muted/50 rounded-xl p-4 space-y-2">
             <div className="flex justify-between text-sm"><span className="text-muted-foreground">Transcript segments</span><span className="font-medium">{transcriptSegments.length}</span></div>
             <div className="flex justify-between text-sm"><span className="text-muted-foreground">Topics detected</span><span className="font-medium">{extractedTopics.length}</span></div>
-            <div className="flex justify-between text-sm"><span className="text-muted-foreground">Low confidence sections</span><span className="font-medium text-warning">2</span></div>
-            <div className="flex justify-between text-sm"><span className="text-muted-foreground">Duration</span><span className="font-medium">1h 24m</span></div>
+            <div className="flex justify-between text-sm"><span className="text-muted-foreground">Duration</span><span className="font-medium">{session.duration || "—"}</span></div>
           </div>
           <div className="bg-warning/10 border border-warning/20 rounded-xl p-3 flex items-start gap-2">
             <AlertTriangle className="w-4 h-4 text-warning shrink-0 mt-0.5" />
-            <p className="text-xs text-foreground">2 segments have lower confidence scores and may need manual verification after processing.</p>
+            <p className="text-xs text-foreground">Confirming approval sends this session through final post-processing lifecycle.</p>
           </div>
           <div className="flex gap-3">
             <Button variant="outline" className="flex-1" onClick={() => setShowConfirm(false)}>Go Back & Review</Button>
-            <Button className="flex-1" asChild><Link to="/app/sessions/s1/processing"><CheckCircle2 className="w-4 h-4" /> Confirm & Process</Link></Button>
+            <Button className="flex-1" onClick={handleApprove} disabled={approveTranscript.isPending}>
+              {approveTranscript.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />} Confirm & Process
+            </Button>
           </div>
         </div>
       </div>
@@ -60,22 +124,23 @@ export default function TranscriptReview() {
             <h1 className="text-xl font-semibold">Verify Knowledge Capture</h1>
           </div>
 
+          {transcriptSegments.length === 0 ? (
+            <div className="rounded-xl border border-border p-6 text-sm text-muted-foreground">
+              Transcript is not ready yet. Return after processing completes.
+            </div>
+          ) : null}
+
           <div className="space-y-4">
             {transcriptSegments.map((seg, i) => (
               <div key={i} className="group relative">
                 <div className={`rounded-xl border p-4 transition-colors ${
-                  i === 3 || i === 7 ? 'border-warning/30 bg-warning/5' : 'border-border hover:border-border/80'
+                  'border-border hover:border-border/80'
                 }`}>
                   <div className="flex items-center gap-2 mb-2">
-                    <span className={`text-xs font-mono px-1.5 py-0.5 rounded ${
-                      i === 3 || i === 7 ? 'bg-warning/20 text-warning border border-warning/30' : 'bg-muted text-muted-foreground'
-                    }`}>{seg.timestamp}</span>
+                    <span className="text-xs font-mono px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{seg.timestamp}</span>
                     <span className="text-xs font-semibold text-muted-foreground uppercase">
                       {seg.speaker === 'ai' ? 'LegacyAI' : 'Sarah Jenkins'}
                     </span>
-                    {(i === 3 || i === 7) && (
-                      <span className="text-xs text-warning flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> Low confidence</span>
-                    )}
                   </div>
                   <p className="text-sm leading-relaxed text-foreground">{seg.text}</p>
                 </div>
@@ -95,9 +160,9 @@ export default function TranscriptReview() {
           <div>
             <h3 className="font-semibold text-sm mb-3">Session Info</h3>
             <div className="space-y-2 text-sm">
-              <div className="flex justify-between"><span className="text-muted-foreground">Employee</span><span className="font-medium">Sarah Jenkins</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Role</span><span>Sr. Staff Engineer</span></div>
-              <div className="flex justify-between"><span className="text-muted-foreground">Duration</span><span>1h 24m</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Employee</span><span className="font-medium">{session.employeeName || 'Employee'}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Role</span><span>{session.employeeRole || '—'}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Duration</span><span>{session.duration || '—'}</span></div>
               <div className="flex justify-between"><span className="text-muted-foreground">Segments</span><span>{transcriptSegments.length}</span></div>
             </div>
           </div>
@@ -106,12 +171,8 @@ export default function TranscriptReview() {
             <h3 className="font-semibold text-sm mb-3">AI Confidence Summary</h3>
             <div className="space-y-2">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">High confidence</span>
-                <span className="text-success font-medium">{transcriptSegments.length - 2} segments</span>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Low confidence</span>
-                <span className="text-warning font-medium">2 segments</span>
+                <span className="text-muted-foreground">AI processing status</span>
+                <span className="text-success font-medium">{session.reportStatus || 'pending'}</span>
               </div>
             </div>
           </div>
@@ -137,7 +198,7 @@ export default function TranscriptReview() {
             <CheckCircle2 className="w-4 h-4" /> Approve & Process
           </Button>
           <div className="grid grid-cols-2 gap-2">
-            <Button variant="outline" size="sm"><RotateCcw className="w-3 h-3" /> Re-record</Button>
+            <Button variant="outline" size="sm" asChild><Link to={`/app/sessions/${id}/interview`}><RotateCcw className="w-3 h-3" /> Re-record</Link></Button>
             <Button variant="ghost" size="sm"><Save className="w-3 h-3" /> Save Draft</Button>
           </div>
         </div>

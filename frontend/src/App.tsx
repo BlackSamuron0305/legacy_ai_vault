@@ -16,6 +16,7 @@ import NewSession from "./pages/NewSession";
 import Interview from "./pages/Interview";
 import TranscriptReview from "./pages/TranscriptReview";
 import ProcessingStatus from "./pages/ProcessingStatus";
+import KnowledgeClassification from "./pages/KnowledgeClassification";
 import SessionDetail from "./pages/SessionDetail";
 import KnowledgeBase from "./pages/KnowledgeBase";
 import CategoryDetail from "./pages/CategoryDetail";
@@ -57,10 +58,11 @@ const AppRoutes = () => (
         <Route index element={<Dashboard />} />
         <Route path="sessions" element={<Sessions />} />
         <Route path="sessions/new" element={<NewSession />} />
-        <Route path="sessions/interview" element={<Interview />} />
+        <Route path="sessions/:id/interview" element={<Interview />} />
         <Route path="sessions/:id" element={<SessionDetail />} />
         <Route path="sessions/:id/review" element={<TranscriptReview />} />
         <Route path="sessions/:id/processing" element={<ProcessingStatus />} />
+        <Route path="sessions/:id/classification" element={<KnowledgeClassification />} />
         <Route path="knowledge" element={<KnowledgeBase />} />
         <Route path="knowledge/:id" element={<CategoryDetail />} />
         <Route path="reports" element={<Reports />} />

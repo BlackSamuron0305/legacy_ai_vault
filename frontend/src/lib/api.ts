@@ -134,6 +134,10 @@ class ApiClient {
         return this.request<any>(`/sessions/${id}/start`, { method: 'POST' });
     }
 
+    async getSessionToken(id: string) {
+        return this.request<{ signed_url: string }>(`/sessions/${id}/token`);
+    }
+
     async endSession(id: string, data: { transcript: string; duration: string; elevenlabsConversationId?: string }) {
         return this.request<any>(`/sessions/${id}/end`, {
             method: 'POST',

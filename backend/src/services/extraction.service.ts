@@ -1,12 +1,10 @@
-import OpenAI from 'openai';
 import { eq } from 'drizzle-orm';
 import { db } from '../db/drizzle';
 import { sessions, knowledgeCards, employees, transcriptSegments, activities } from '../db/schema';
 import { EXTRACTOR_PROMPT } from '../prompts/extractor';
 import { createEmbedding } from './embedding.service';
 import { log, logError } from '../utils/logger';
-
-const openai = new OpenAI();
+import { createHfChatCompletion } from './hf.service';
 
 interface ExtractedCard {
     topic: string;
@@ -26,17 +24,16 @@ export async function extractKnowledge(sessionId: string, employeeId: string, tr
 
     try {
         // 1. LLM: Extract knowledge cards from transcript
-        const completion = await openai.chat.completions.create({
-            model: 'gpt-4o-mini',
+        const responseText = await createHfChatCompletion({
             messages: [
                 { role: 'system', content: EXTRACTOR_PROMPT },
                 { role: 'user', content: `Transkript:\n\n${transcript}` },
             ],
-            response_format: { type: 'json_object' },
+            responseFormat: { type: 'json_object' },
             temperature: 0.3,
+            maxTokens: 2000,
         });
 
-        const responseText = completion.choices[0].message.content;
         if (!responseText) throw new Error('Empty LLM response');
 
         const parsed = JSON.parse(responseText);
@@ -84,16 +81,14 @@ export async function extractKnowledge(sessionId: string, employeeId: string, tr
         }
 
         // 4. Generate summary
-        const summaryCompletion = await openai.chat.completions.create({
-            model: 'gpt-4o-mini',
+        const summary = await createHfChatCompletion({
             messages: [
                 { role: 'system', content: 'Summarize this interview in 2-3 sentences.' },
                 { role: 'user', content: transcript },
             ],
             temperature: 0.3,
+            maxTokens: 300,
         });
-
-        const summary = summaryCompletion.choices[0].message.content || '';
 
         // 5. Update session
         await db.update(sessions)
