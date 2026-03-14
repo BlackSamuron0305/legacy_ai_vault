@@ -75,30 +75,30 @@ export default function TranscriptReview() {
   if (showConfirm) {
     return (
       <div className="min-h-[calc(100vh-3.5rem)] flex items-center justify-center p-6">
-        <div className="w-full max-w-lg bg-card rounded-2xl border border-border shadow-elevated p-8 space-y-6">
-          <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
+        <div className="w-full max-w-lg bg-white border border-border p-8 space-y-6">
+          <div className="w-12 h-12 bg-foreground/[0.06] flex items-center justify-center text-foreground">
             <Shield className="w-6 h-6" />
           </div>
           <div>
             <h2 className="text-xl font-semibold">Approve transcript for processing?</h2>
-            <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
+            <p className="text-[13px] text-muted-foreground mt-2 leading-relaxed">
               Once approved, the system will begin structuring knowledge, generating categories, and preparing outputs from this transcript.
             </p>
           </div>
-          <div className="bg-muted/50 rounded-xl p-4 space-y-2">
-            <div className="flex justify-between text-sm"><span className="text-muted-foreground">Transcript segments</span><span className="font-medium">{transcriptSegments.length}</span></div>
-            <div className="flex justify-between text-sm"><span className="text-muted-foreground">Topics detected</span><span className="font-medium">{extractedTopics.length}</span></div>
-            <div className="flex justify-between text-sm"><span className="text-muted-foreground">Duration</span><span className="font-medium">{session.duration || "—"}</span></div>
+          <div className="bg-foreground/[0.03] border border-border p-4 space-y-2">
+            <div className="flex justify-between text-[13px]"><span className="text-muted-foreground">Transcript segments</span><span className="font-medium">{transcriptSegments.length}</span></div>
+            <div className="flex justify-between text-[13px]"><span className="text-muted-foreground">Topics detected</span><span className="font-medium">{extractedTopics.length}</span></div>
+            <div className="flex justify-between text-[13px]"><span className="text-muted-foreground">Duration</span><span className="font-medium">{session.duration || "—"}</span></div>
           </div>
-          <div className="bg-warning/10 border border-warning/20 rounded-xl p-3 flex items-start gap-2">
-            <AlertTriangle className="w-4 h-4 text-warning shrink-0 mt-0.5" />
+          <div className="bg-amber-50 border border-amber-200 p-3 flex items-start gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
             <p className="text-xs text-foreground">Confirming approval sends this session through final post-processing lifecycle.</p>
           </div>
           <div className="flex gap-3">
-            <Button variant="outline" className="flex-1" onClick={() => setShowConfirm(false)}>Go Back & Review</Button>
-            <Button className="flex-1" onClick={handleApprove} disabled={approveTranscript.isPending}>
+            <button className="flex-1 h-9 border border-border text-[13px] font-medium hover:bg-foreground/[0.04] transition-colors" onClick={() => setShowConfirm(false)}>Go Back & Review</button>
+            <button className="flex-1 h-9 bg-foreground text-background text-[13px] font-medium flex items-center justify-center gap-1.5 disabled:opacity-60 hover:bg-foreground/90 transition-colors" onClick={handleApprove} disabled={approveTranscript.isPending}>
               {approveTranscript.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />} Confirm & Process
-            </Button>
+            </button>
           </div>
         </div>
       </div>
@@ -110,10 +110,10 @@ export default function TranscriptReview() {
       {/* Transcript Panel */}
       <div className="flex-1 overflow-y-auto">
         {/* Status Banner */}
-        <div className="bg-warning/10 border-b border-warning/20 px-6 py-3 flex items-center gap-3">
-          <AlertTriangle className="w-4 h-4 text-warning" />
+        <div className="bg-amber-50 border-b border-amber-200 px-6 py-3 flex items-center gap-3">
+          <AlertTriangle className="w-4 h-4 text-amber-600" />
           <div>
-            <p className="text-sm font-medium">Transcript captured — awaiting your review</p>
+            <p className="text-[13px] font-medium">Transcript captured — awaiting your review</p>
             <p className="text-xs text-muted-foreground">No knowledge extraction will happen until this transcript is approved.</p>
           </div>
         </div>
@@ -125,7 +125,7 @@ export default function TranscriptReview() {
           </div>
 
           {transcriptSegments.length === 0 ? (
-            <div className="rounded-xl border border-border p-6 text-sm text-muted-foreground">
+            <div className="border border-border p-6 text-[13px] text-muted-foreground">
               Transcript is not ready yet. Return after processing completes.
             </div>
           ) : null}
@@ -133,20 +133,20 @@ export default function TranscriptReview() {
           <div className="space-y-4">
             {transcriptSegments.map((seg, i) => (
               <div key={i} className="group relative">
-                <div className={`rounded-xl border p-4 transition-colors ${
-                  'border-border hover:border-border/80'
+                <div className={`border p-4 transition-colors ${
+                  'border-border hover:border-foreground/20'
                 }`}>
                   <div className="flex items-center gap-2 mb-2">
-                    <span className="text-xs font-mono px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{seg.timestamp}</span>
+                    <span className="text-xs font-mono px-1.5 py-0.5 bg-foreground/[0.06] text-muted-foreground">{seg.timestamp}</span>
                     <span className="text-xs font-semibold text-muted-foreground uppercase">
                       {seg.speaker === 'ai' ? 'LegacyAI' : 'Sarah Jenkins'}
                     </span>
                   </div>
-                  <p className="text-sm leading-relaxed text-foreground">{seg.text}</p>
+                  <p className="text-[13px] leading-relaxed text-foreground">{seg.text}</p>
                 </div>
                 <div className="absolute right-2 top-2 hidden group-hover:flex gap-1">
-                  <button className="p-1.5 rounded-lg bg-card border border-border hover:bg-accent text-muted-foreground"><Edit3 className="w-3 h-3" /></button>
-                  <button className="p-1.5 rounded-lg bg-card border border-border hover:bg-accent text-muted-foreground"><Flag className="w-3 h-3" /></button>
+                  <button className="p-1.5 bg-white border border-border hover:bg-foreground/[0.04] text-muted-foreground"><Edit3 className="w-3 h-3" /></button>
+                  <button className="p-1.5 bg-white border border-border hover:bg-foreground/[0.04] text-muted-foreground"><Flag className="w-3 h-3" /></button>
                 </div>
               </div>
             ))}
@@ -155,11 +155,11 @@ export default function TranscriptReview() {
       </div>
 
       {/* Right Sidebar */}
-      <div className="w-80 border-l border-border bg-card flex flex-col shrink-0">
+      <div className="w-80 border-l border-border bg-white flex flex-col shrink-0">
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           <div>
-            <h3 className="font-semibold text-sm mb-3">Session Info</h3>
-            <div className="space-y-2 text-sm">
+            <h3 className="text-[13px] font-semibold uppercase tracking-wide text-muted-foreground mb-3">Session Info</h3>
+            <div className="space-y-2 text-[13px]">
               <div className="flex justify-between"><span className="text-muted-foreground">Employee</span><span className="font-medium">{session.employeeName || 'Employee'}</span></div>
               <div className="flex justify-between"><span className="text-muted-foreground">Role</span><span>{session.employeeRole || '—'}</span></div>
               <div className="flex justify-between"><span className="text-muted-foreground">Duration</span><span>{session.duration || '—'}</span></div>
@@ -168,20 +168,20 @@ export default function TranscriptReview() {
           </div>
 
           <div>
-            <h3 className="font-semibold text-sm mb-3">AI Confidence Summary</h3>
+            <h3 className="text-[13px] font-semibold uppercase tracking-wide text-muted-foreground mb-3">AI Confidence Summary</h3>
             <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center justify-between text-[13px]">
                 <span className="text-muted-foreground">AI processing status</span>
-                <span className="text-success font-medium">{session.reportStatus || 'pending'}</span>
+                <span className="text-emerald-600 font-medium">{session.reportStatus || 'pending'}</span>
               </div>
             </div>
           </div>
 
           <div>
-            <h3 className="font-semibold text-sm mb-3">Draft Extractions</h3>
+            <h3 className="text-[13px] font-semibold uppercase tracking-wide text-muted-foreground mb-3">Draft Extractions</h3>
             <div className="space-y-2">
               {extractedTopics.slice(0, 6).map((t) => (
-                <div key={t.name} className="px-3 py-2 rounded-lg border border-border bg-muted/30 text-sm">
+                <div key={t.name} className="px-3 py-2 border border-border bg-foreground/[0.03] text-[13px]">
                   <span className="font-medium">{t.name}</span>
                   <p className="text-xs text-muted-foreground">{t.category}</p>
                 </div>
@@ -194,12 +194,12 @@ export default function TranscriptReview() {
           <p className="text-xs text-muted-foreground text-center">
             No data will be committed to the Knowledge Base until you approve this transcript.
           </p>
-          <Button className="w-full" size="lg" onClick={() => setShowConfirm(true)}>
+          <button className="w-full h-10 bg-foreground text-background text-[13px] font-medium flex items-center justify-center gap-1.5 hover:bg-foreground/90 transition-colors" onClick={() => setShowConfirm(true)}>
             <CheckCircle2 className="w-4 h-4" /> Approve & Process
-          </Button>
+          </button>
           <div className="grid grid-cols-2 gap-2">
-            <Button variant="outline" size="sm" asChild><Link to={`/app/sessions/${id}/interview`}><RotateCcw className="w-3 h-3" /> Re-record</Link></Button>
-            <Button variant="ghost" size="sm"><Save className="w-3 h-3" /> Save Draft</Button>
+            <Link to={`/app/sessions/${id}/interview`} className="h-8 border border-border text-[13px] font-medium flex items-center justify-center gap-1 hover:bg-foreground/[0.04] transition-colors"><RotateCcw className="w-3 h-3" /> Re-record</Link>
+            <button className="h-8 border border-border text-[13px] text-muted-foreground font-medium flex items-center justify-center gap-1 hover:bg-foreground/[0.04] transition-colors"><Save className="w-3 h-3" /> Save Draft</button>
           </div>
         </div>
       </div>

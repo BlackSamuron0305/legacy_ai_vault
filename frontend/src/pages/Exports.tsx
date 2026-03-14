@@ -22,10 +22,10 @@ export default function Exports() {
   }));
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
+    <div className="p-8 max-w-7xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Exports & Integrations</h1>
-        <p className="text-sm text-muted-foreground mt-1">Export structured knowledge to your documentation and AI systems</p>
+        <h1 className="text-xl font-semibold tracking-tight">Exports & Integrations</h1>
+        <p className="text-[13px] text-muted-foreground mt-1">Export structured knowledge to your documentation and AI systems</p>
       </div>
       <div className="grid md:grid-cols-4 gap-4">
         {[
@@ -34,38 +34,38 @@ export default function Exports() {
           { icon: BookOpen, title: 'Knowledge Base', desc: 'Push to internal knowledge base' },
           { icon: ExternalLink, title: 'Agent Integration', desc: 'Connect to AI assistant' },
         ].map((c) => (
-          <div key={c.title} className="bg-card rounded-2xl border border-border shadow-card p-5 hover:border-primary/20 transition-colors cursor-pointer">
-            <c.icon className="w-5 h-5 text-primary mb-3" />
-            <h3 className="font-medium text-sm">{c.title}</h3>
+          <div key={c.title} className="bg-white border border-border p-5 hover:border-foreground/20 transition-colors cursor-pointer">
+            <c.icon className="w-4 h-4 text-foreground mb-3" />
+            <h3 className="font-medium text-[13px]">{c.title}</h3>
             <p className="text-xs text-muted-foreground mt-1">{c.desc}</p>
           </div>
         ))}
       </div>
-      <div className="bg-card rounded-2xl border border-border shadow-card">
-        <div className="p-4 border-b border-border flex items-center justify-between">
-          <h2 className="font-semibold text-sm">Export Packages</h2>
+      <div className="bg-white border border-border">
+        <div className="px-5 py-3.5 border-b border-border flex items-center justify-between">
+          <h2 className="text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">Export Packages</h2>
           <span className="text-xs text-muted-foreground">{exportPacks.length} reports · {cards.length} knowledge blocks total</span>
         </div>
         {isLoading ? (
           <div className="flex items-center justify-center h-32"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
         ) : exportPacks.length === 0 ? (
-          <div className="p-8 text-center text-sm text-muted-foreground">No reports yet. Complete a session to generate export packages.</div>
+          <div className="p-8 text-center text-[13px] text-muted-foreground">No reports yet. Complete a session to generate export packages.</div>
         ) : (
           <div className="divide-y divide-border">
             {exportPacks.map((p) => (
-              <div key={p.id} className="p-4 flex items-center justify-between hover:bg-accent/50 transition-colors">
+              <div key={p.id} className="px-5 py-3.5 flex items-center justify-between hover:bg-foreground/[0.02] transition-colors">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center"><Package className="w-5 h-5 text-primary" /></div>
+                  <div className="w-9 h-9 bg-foreground/[0.06] flex items-center justify-center"><Package className="w-4 h-4 text-foreground" /></div>
                   <div>
-                    <p className="font-medium text-sm">{p.title}</p>
+                    <p className="font-medium text-[13px]">{p.title}</p>
                     <p className="text-xs text-muted-foreground">{p.employee} · {p.format}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
                   <StatusBadge status={p.status} />
-                  <Button variant="outline" size="sm" disabled={p.status !== 'ready' && p.status !== 'finalized'}>
+                  <button disabled={p.status !== 'ready' && p.status !== 'finalized'} className="inline-flex items-center gap-1.5 border border-border px-3 py-1.5 text-[13px] font-medium disabled:opacity-40 hover:bg-foreground/[0.04] transition-colors">
                     <Upload className="w-3.5 h-3.5" /> Export
-                  </Button>
+                  </button>
                 </div>
               </div>
             ))}

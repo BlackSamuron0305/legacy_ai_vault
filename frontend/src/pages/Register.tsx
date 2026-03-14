@@ -104,7 +104,7 @@ export default function Register() {
             ].map((item, i) => (
               <div key={i} className={`flex items-center gap-3 text-foreground/75 animate-auth-fade-up auth-delay-${Math.min(i + 3, 5)}`}>
                 <CheckCircle2 className="w-4 h-4 text-emerald-500/60 shrink-0" />
-                <span className="text-sm font-medium">{item}</span>
+                <span className="text-[13px] font-medium">{item}</span>
               </div>
             ))}
           </div>
@@ -125,37 +125,37 @@ export default function Register() {
           </div>
           <div className="mb-5 animate-auth-fade-up auth-delay-1">
             <h2 className="text-xl font-bold tracking-tight">Create your account</h2>
-            <p className="text-muted-foreground text-sm mt-1">Start preserving institutional knowledge today</p>
+            <p className="text-muted-foreground text-[13px] mt-1">Start preserving institutional knowledge today</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-3.5">
             {error && (
-              <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 text-sm text-destructive animate-auth-fade-up">{error}</div>
+              <div className="bg-red-50 border border-red-200 p-3 text-[13px] text-red-600 animate-auth-fade-up">{error}</div>
             )}
             <div className="animate-auth-fade-up auth-delay-2">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Full name</label>
-              <input type="text" placeholder="Alex Rivera" value={fullName} onChange={e => setFullName(e.target.value)} required className="mt-1 w-full h-11 px-3.5 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all" />
+              <input type="text" placeholder="Alex Rivera" value={fullName} onChange={e => setFullName(e.target.value)} required className="mt-1 w-full h-11 px-3.5 border border-border bg-white text-[13px] focus:outline-none focus:ring-1 focus:ring-foreground/20 transition-all" />
             </div>
             <div className="animate-auth-fade-up auth-delay-2">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Work email</label>
-              <input type="email" placeholder="you@company.com" value={email} onChange={e => setEmail(e.target.value)} required className="mt-1 w-full h-11 px-3.5 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all" />
+              <input type="email" placeholder="you@company.com" value={email} onChange={e => setEmail(e.target.value)} required className="mt-1 w-full h-11 px-3.5 border border-border bg-white text-[13px] focus:outline-none focus:ring-1 focus:ring-foreground/20 transition-all" />
             </div>
             <div className="animate-auth-fade-up auth-delay-3">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Company name</label>
-              <input type="text" placeholder="Acme Corp" value={companyName} onChange={e => setCompanyName(e.target.value)} required className="mt-1 w-full h-11 px-3.5 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all" />
+              <input type="text" placeholder="Acme Corp" value={companyName} onChange={e => setCompanyName(e.target.value)} required className="mt-1 w-full h-11 px-3.5 border border-border bg-white text-[13px] focus:outline-none focus:ring-1 focus:ring-foreground/20 transition-all" />
             </div>
             <div className="grid grid-cols-2 gap-2.5 animate-auth-fade-up auth-delay-4">
               <div>
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Password</label>
-                <input type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required className="mt-1 w-full h-11 px-3.5 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all" />
+                <input type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required className="mt-1 w-full h-11 px-3.5 border border-border bg-white text-[13px] focus:outline-none focus:ring-1 focus:ring-foreground/20 transition-all" />
               </div>
               <div>
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Confirm</label>
-                <input type="password" placeholder="••••••••" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required className="mt-1 w-full h-11 px-3.5 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all" />
+                <input type="password" placeholder="••••••••" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required className="mt-1 w-full h-11 px-3.5 border border-border bg-white text-[13px] focus:outline-none focus:ring-1 focus:ring-foreground/20 transition-all" />
               </div>
             </div>
             <div className="animate-auth-fade-up auth-delay-5 pt-0.5">
-              <Button className="w-full h-11 rounded-lg text-sm font-semibold bg-foreground text-background hover:bg-foreground/85 border-0 shadow-sm transition-all" type="submit" disabled={loading}>
+              <Button className="w-full h-11 text-[13px] font-semibold bg-foreground text-background hover:bg-foreground/85 border-0 transition-all" type="submit" disabled={loading}>
                 {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> Creating account...</> : 'Create Account'}
               </Button>
             </div>
@@ -166,8 +166,8 @@ export default function Register() {
             <span>Your data is encrypted and secure</span>
           </div>
 
-          <p className="text-sm text-center text-muted-foreground mt-5 animate-auth-fade-up auth-delay-5">
-            Already have an account? <Link to="/login" className="text-primary hover:underline font-semibold">Sign in</Link>
+          <p className="text-[13px] text-center text-muted-foreground mt-5 animate-auth-fade-up auth-delay-5">
+            Already have an account? <Link to="/login" className="text-foreground hover:underline font-semibold">Sign in</Link>
           </p>
         </div>
       </div>

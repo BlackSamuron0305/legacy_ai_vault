@@ -95,10 +95,10 @@ export default function Login() {
               { icon: BookOpen, label: 'Searchable Knowledge Base' },
             ].map(({ icon: Icon, label }, i) => (
               <div key={i} className={`flex items-center gap-3 text-foreground/80 animate-auth-fade-up auth-delay-${i + 3}`}>
-                <div className="w-9 h-9 rounded-lg bg-foreground/8 backdrop-blur-sm flex items-center justify-center border border-border">
+                <div className="w-9 h-9 bg-foreground/[0.06] backdrop-blur-sm flex items-center justify-center border border-border">
                   <Icon className="w-4 h-4" />
                 </div>
-                <span className="text-sm font-medium">{label}</span>
+                <span className="text-[13px] font-medium">{label}</span>
               </div>
             ))}
           </div>
@@ -119,26 +119,26 @@ export default function Login() {
           </div>
           <div className="mb-6 animate-auth-fade-up auth-delay-1">
             <h2 className="text-xl font-bold tracking-tight">Welcome back</h2>
-            <p className="text-muted-foreground text-sm mt-1">Sign in to continue to your workspace</p>
+            <p className="text-muted-foreground text-[13px] mt-1">Sign in to continue to your workspace</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
-              <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 text-sm text-destructive animate-auth-fade-up">{error}</div>
+              <div className="bg-red-50 border border-red-200 p-3 text-[13px] text-red-600 animate-auth-fade-up">{error}</div>
             )}
             <div className="animate-auth-fade-up auth-delay-2">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Email</label>
-              <input type="email" placeholder="you@company.com" value={email} onChange={e => setEmail(e.target.value)} required className="mt-1 w-full h-11 px-3.5 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all" />
+              <input type="email" placeholder="you@company.com" value={email} onChange={e => setEmail(e.target.value)} required className="mt-1 w-full h-11 px-3.5 border border-border bg-white text-[13px] focus:outline-none focus:ring-1 focus:ring-foreground/20 transition-all" />
             </div>
             <div className="animate-auth-fade-up auth-delay-3">
               <div className="flex justify-between items-center">
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Password</label>
-                <Link to="/forgot-password" className="text-xs text-primary hover:underline">Forgot?</Link>
+                <Link to="/forgot-password" className="text-xs text-foreground hover:underline">Forgot?</Link>
               </div>
-              <input type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required className="mt-1 w-full h-11 px-3.5 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all" />
+              <input type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required className="mt-1 w-full h-11 px-3.5 border border-border bg-white text-[13px] focus:outline-none focus:ring-1 focus:ring-foreground/20 transition-all" />
             </div>
             <div className="animate-auth-fade-up auth-delay-4 pt-1">
-              <Button className="w-full h-11 rounded-lg text-sm font-semibold bg-foreground text-background hover:bg-foreground/85 border-0 shadow-sm transition-all" type="submit" disabled={loading}>
+              <Button className="w-full h-11 text-[13px] font-semibold bg-foreground text-background hover:bg-foreground/85 border-0 transition-all" type="submit" disabled={loading}>
                 {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> Signing in...</> : 'Sign In'}
               </Button>
             </div>
@@ -149,8 +149,8 @@ export default function Login() {
             <span>Secured with enterprise-grade encryption</span>
           </div>
 
-          <p className="text-sm text-center text-muted-foreground mt-6 animate-auth-fade-up auth-delay-5">
-            Don't have an account? <Link to="/register" className="text-primary hover:underline font-semibold">Create one</Link>
+          <p className="text-[13px] text-center text-muted-foreground mt-6 animate-auth-fade-up auth-delay-5">
+            Don't have an account? <Link to="/register" className="text-foreground hover:underline font-semibold">Create one</Link>
           </p>
         </div>
       </div>

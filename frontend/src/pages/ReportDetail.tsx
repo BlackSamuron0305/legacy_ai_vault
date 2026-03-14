@@ -23,7 +23,7 @@ export default function ReportDetail() {
   }
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
+    <div className="p-8 max-w-5xl mx-auto space-y-6">
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" asChild><Link to="/app/reports"><ArrowLeft className="w-4 h-4" /></Link></Button>
         <div className="flex-1">
@@ -31,28 +31,28 @@ export default function ReportDetail() {
             <h1 className="text-xl font-semibold">{report.title || 'Untitled Report'}</h1>
             {report.status && <StatusBadge status={report.status} />}
           </div>
-          <p className="text-sm text-muted-foreground">{report.type || 'Report'} · Generated {report.createdAt ? new Date(report.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}</p>
+          <p className="text-[13px] text-muted-foreground">{report.type || 'Report'} · Generated {report.createdAt ? new Date(report.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}</p>
         </div>
-        <Button variant="outline" size="sm"><Download className="w-4 h-4" /> Export PDF</Button>
+        <button className="h-8 px-4 border border-border text-[13px] font-medium flex items-center gap-1.5 hover:bg-foreground/[0.04] transition-colors"><Download className="w-3.5 h-3.5" /> Export PDF</button>
       </div>
 
-      <div className="bg-card rounded-2xl border border-border shadow-card">
+      <div className="bg-white border border-border">
         <div className="p-6 border-b border-border">
           {report.status === 'finalized' && (
             <div className="flex items-center gap-2 mb-4">
-              <CheckCircle2 className="w-5 h-5 text-success" />
+              <CheckCircle2 className="w-5 h-5 text-emerald-600" />
               <Badge variant="success">Approved & Finalized</Badge>
             </div>
           )}
           <h2 className="text-2xl font-semibold font-serif">{report.title}</h2>
-          {report.employeeName && <p className="text-muted-foreground mt-2">Knowledge capture summary for {report.employeeName}</p>}
+          {report.employeeName && <p className="text-muted-foreground mt-2">{report.employeeName}</p>}
         </div>
 
         <div className="p-6 space-y-8 font-serif">
           {report.content ? (
-            <div className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{report.content}</div>
+            <div className="text-[13px] text-muted-foreground leading-relaxed whitespace-pre-wrap">{report.content}</div>
           ) : (
-            <p className="text-sm text-muted-foreground">No report content available yet.</p>
+            <p className="text-[13px] text-muted-foreground">No report content available yet.</p>
           )}
         </div>
 

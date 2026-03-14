@@ -21,17 +21,17 @@ export default function ForgotPassword() {
             <span className="text-sm font-semibold text-foreground">Legacy AI</span>
           </div>
           <h1 className="text-xl font-semibold tracking-tight">Reset your password</h1>
-          <p className="text-sm text-muted-foreground mt-1">We'll send you a link to reset your password</p>
+          <p className="text-[13px] text-muted-foreground mt-1">We'll send you a link to reset your password</p>
         </div>
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl border border-border shadow-card p-6 space-y-4">
+        <div className="bg-white/80 backdrop-blur-sm border border-border p-6 space-y-4">
           <div>
             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Email</label>
-            <input type="email" placeholder="you@company.com" className="mt-1 w-full h-11 px-3.5 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all" />
+            <input type="email" placeholder="you@company.com" className="mt-1 w-full h-11 px-3.5 border border-border bg-white text-[13px] focus:outline-none focus:ring-1 focus:ring-foreground/20 transition-all" />
           </div>
-          <Button className="w-full h-11 rounded-lg text-sm font-semibold bg-foreground text-background hover:bg-foreground/85 border-0 shadow-sm transition-all">Send Reset Link</Button>
+          <Button className="w-full h-11 text-[13px] font-semibold bg-foreground text-background hover:bg-foreground/85 border-0 transition-all">Send Reset Link</Button>
         </div>
         <div className="text-center mt-5">
-          <Link to="/login" className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1 transition-colors">
+          <Link to="/login" className="text-[13px] text-muted-foreground hover:text-foreground inline-flex items-center gap-1 transition-colors">
             <ArrowLeft className="w-3.5 h-3.5" /> Back to sign in
           </Link>
         </div>

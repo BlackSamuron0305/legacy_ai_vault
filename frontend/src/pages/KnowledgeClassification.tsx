@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -178,42 +177,40 @@ export default function KnowledgeClassification() {
   if (!classification) return null;
 
   const getRiskColor = (score: number) => {
-    if (score >= 0.7) return 'text-destructive';
-    if (score >= 0.4) return 'text-warning';
-    return 'text-success';
+    if (score >= 0.7) return 'text-red-600';
+    if (score >= 0.4) return 'text-amber-600';
+    return 'text-emerald-600';
   };
 
   const getRiskBgColor = (score: number) => {
-    if (score >= 0.7) return 'bg-destructive/10 border-destructive/20';
-    if (score >= 0.4) return 'bg-warning/10 border-warning/20';
-    return 'bg-success/10 border-success/20';
+    if (score >= 0.7) return 'bg-red-50 border-red-200';
+    if (score >= 0.4) return 'bg-amber-50 border-amber-200';
+    return 'bg-emerald-50 border-emerald-200';
   };
 
   const getHealthIcon = (health: string) => {
     switch (health) {
-      case 'HEALTHY': return <CheckCircle className="w-5 h-5 text-success" />;
-      case 'AT_RISK': return <AlertTriangle className="w-5 h-5 text-warning" />;
-      case 'CRITICAL': return <XCircle className="w-5 h-5 text-destructive" />;
+      case 'HEALTHY': return <CheckCircle className="w-5 h-5 text-emerald-600" />;
+      case 'AT_RISK': return <AlertTriangle className="w-5 h-5 text-amber-600" />;
+      case 'CRITICAL': return <XCircle className="w-5 h-5 text-red-600" />;
       default: return <Shield className="w-5 h-5 text-muted-foreground" />;
     }
   };
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-6">
+    <div className="p-8 max-w-6xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Knowledge Classification</h1>
-          <p className="text-sm text-muted-foreground mt-1">
+          <h1 className="text-xl font-semibold tracking-tight">Knowledge Classification</h1>
+          <p className="text-[13px] text-muted-foreground mt-1">
             Risk assessment and organizational intelligence analysis
           </p>
         </div>
-        <Button variant="outline" asChild>
-          <a href={`/app/sessions/${id}/review`}>
-            <FileText className="w-4 h-4 mr-2" />
-            Back to Report
-          </a>
-        </Button>
+        <a href={`/app/sessions/${id}/review`} className="h-8 px-4 border border-border text-[13px] font-medium flex items-center gap-1.5 hover:bg-foreground/[0.04] transition-colors">
+          <FileText className="w-3.5 h-3.5" />
+          Back to Report
+        </a>
       </div>
 
       {/* Overall Risk Assessment */}
@@ -230,25 +227,25 @@ export default function KnowledgeClassification() {
               <div className={`text-3xl font-bold ${getRiskColor(classification.report_metadata.overall_risk_score)}`}>
                 {Math.round(classification.report_metadata.overall_risk_score * 100)}%
               </div>
-              <p className="text-sm text-muted-foreground">Risk Score</p>
+              <p className="text-[13px] text-muted-foreground">Risk Score</p>
             </div>
             <div className="text-center">
               <div className="text-2xl font-semibold">
                 {classification.report_metadata.total_knowledge_items}
               </div>
-              <p className="text-sm text-muted-foreground">Knowledge Items</p>
+              <p className="text-[13px] text-muted-foreground">Knowledge Items</p>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-semibold text-success">
+              <div className="text-2xl font-semibold text-emerald-600">
                 {Math.round(classification.report_metadata.knowledge_coverage_score * 100)}%
               </div>
-              <p className="text-sm text-muted-foreground">Coverage</p>
+              <p className="text-[13px] text-muted-foreground">Coverage</p>
             </div>
             <div className="text-center">
               <div className="flex items-center justify-center">
                 {getHealthIcon(classification.organizational_insights.knowledge_health)}
               </div>
-              <p className="text-sm text-muted-foreground mt-1">
+              <p className="text-[13px] text-muted-foreground mt-1">
                 {classification.organizational_insights.knowledge_health.replace('_', ' ')}
               </p>
             </div>
@@ -272,7 +269,7 @@ export default function KnowledgeClassification() {
                   } className="capitalize">
                     {level}
                   </Badge>
-                  <span className="text-sm">{count} items</span>
+                  <span className="text-[13px]">{count} items</span>
                 </div>
                 <Progress 
                   value={(count / classification.report_metadata.total_knowledge_items) * 100} 
@@ -297,7 +294,7 @@ export default function KnowledgeClassification() {
                   } className="capitalize">
                     {urgency.replace('_', ' ')}
                   </Badge>
-                  <span className="text-sm">{count} items</span>
+                  <span className="text-[13px]">{count} items</span>
                 </div>
                 <Progress 
                   value={(count / classification.report_metadata.total_knowledge_items) * 100} 
@@ -313,7 +310,7 @@ export default function KnowledgeClassification() {
       {classification.risk_assessment.high_risk_items.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-destructive">
+            <CardTitle className="flex items-center gap-2 text-red-600">
               <AlertTriangle className="w-5 h-5" />
               High Risk Items ({classification.risk_assessment.high_risk_items.length})
             </CardTitle>
@@ -325,11 +322,11 @@ export default function KnowledgeClassification() {
                 <AlertDescription>
                   <div className="space-y-2">
                     <div className="font-semibold">{item.topic}</div>
-                    <div className="text-sm">{item.risk_description}</div>
-                    <div className="text-sm font-medium">
+                    <div className="text-[13px]">{item.risk_description}</div>
+                    <div className="text-[13px] font-medium">
                       <strong>Impact if lost:</strong> {item.impact_if_lost}
                     </div>
-                    <div className="text-sm">
+                    <div className="text-[13px]">
                       <strong>Mitigation:</strong> {item.mitigation_required}
                     </div>
                   </div>
@@ -351,13 +348,13 @@ export default function KnowledgeClassification() {
           </CardHeader>
           <CardContent className="space-y-4">
             {classification.action_recommendations.immediate_actions.map((action, i) => (
-              <div key={i} className="flex items-start gap-3 p-4 border rounded-lg">
-                <div className="w-8 h-8 rounded-full bg-destructive/10 flex items-center justify-center flex-shrink-0">
-                  <Target className="w-4 h-4 text-destructive" />
+              <div key={i} className="flex items-start gap-3 p-4 border border-border">
+                <div className="w-8 h-8 bg-red-50 flex items-center justify-center flex-shrink-0">
+                  <Target className="w-4 h-4 text-red-600" />
                 </div>
                 <div className="flex-1 space-y-2">
                   <div className="font-medium">{action.action}</div>
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                  <div className="flex items-center gap-4 text-[13px] text-muted-foreground">
                     <span className="flex items-center gap-1">
                       <Badge variant={action.priority === 'HIGH' ? 'destructive' : 'default'}>
                         {action.priority}
@@ -383,28 +380,28 @@ export default function KnowledgeClassification() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="text-center p-4 border rounded-lg">
+            <div className="text-center p-4 border border-border">
               {getHealthIcon(classification.organizational_insights.knowledge_health)}
               <div className="mt-2 font-semibold">Knowledge Health</div>
-              <div className="text-sm text-muted-foreground capitalize">
+              <div className="text-[13px] text-muted-foreground capitalize">
                 {classification.organizational_insights.knowledge_health.replace('_', ' ')}
               </div>
             </div>
-            <div className="text-center p-4 border rounded-lg">
-              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-2">
-                <FileText className="w-4 h-4 text-primary" />
+            <div className="text-center p-4 border border-border">
+              <div className="w-8 h-8 bg-foreground/[0.06] flex items-center justify-center mx-auto mb-2">
+                <FileText className="w-4 h-4 text-foreground" />
               </div>
               <div className="mt-2 font-semibold">Documentation Maturity</div>
-              <div className="text-sm text-muted-foreground capitalize">
+              <div className="text-[13px] text-muted-foreground capitalize">
                 {classification.organizational_insights.documentation_maturity.toLowerCase()}
               </div>
             </div>
-            <div className="text-center p-4 border rounded-lg">
-              <div className="w-8 h-8 rounded-full bg-success/10 flex items-center justify-center mx-auto mb-2">
-                <Users className="w-4 h-4 text-success" />
+            <div className="text-center p-4 border border-border">
+              <div className="w-8 h-8 bg-emerald-50 flex items-center justify-center mx-auto mb-2">
+                <Users className="w-4 h-4 text-emerald-600" />
               </div>
               <div className="mt-2 font-semibold">Succession Readiness</div>
-              <div className="text-sm text-muted-foreground capitalize">
+              <div className="text-[13px] text-muted-foreground capitalize">
                 {classification.organizational_insights.succession_readiness.toLowerCase()}
               </div>
             </div>
@@ -415,8 +412,8 @@ export default function KnowledgeClassification() {
             <div className="space-y-2">
               {classification.organizational_insights.key_recommendations.map((rec, i) => (
                 <div key={i} className="flex items-start gap-2">
-                  <ArrowRight className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
-                  <span className="text-sm">{rec}</span>
+                  <ArrowRight className="w-4 h-4 text-foreground mt-0.5 flex-shrink-0" />
+                  <span className="text-[13px]">{rec}</span>
                 </div>
               ))}
             </div>

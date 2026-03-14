@@ -11,43 +11,43 @@ export default function Reports() {
     return <div className="flex items-center justify-center h-64"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
   }
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
+    <div className="p-8 max-w-7xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Reports</h1>
-        <p className="text-sm text-muted-foreground mt-1">Generated knowledge outputs and handover documentation</p>
+        <h1 className="text-xl font-semibold tracking-tight">Reports</h1>
+        <p className="text-[13px] text-muted-foreground mt-1">Generated knowledge outputs and handover documentation</p>
       </div>
 
-      <div className="bg-card rounded-2xl border border-border shadow-card overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="bg-white border border-border overflow-hidden">
+        <table className="w-full text-[13px]">
           <thead>
-            <tr className="border-b border-border bg-muted/30">
-              <th className="text-left p-3 font-medium text-muted-foreground">Report</th>
-              <th className="text-left p-3 font-medium text-muted-foreground">Employee</th>
-              <th className="text-left p-3 font-medium text-muted-foreground">Type</th>
-              <th className="text-left p-3 font-medium text-muted-foreground">Status</th>
-              <th className="text-left p-3 font-medium text-muted-foreground">Export</th>
-              <th className="text-left p-3 font-medium text-muted-foreground">Updated</th>
-              <th className="text-left p-3 font-medium text-muted-foreground">Actions</th>
+            <tr className="border-b border-border">
+              <th className="text-left px-5 py-2.5 font-medium text-xs text-muted-foreground uppercase tracking-wide">Report</th>
+              <th className="text-left px-5 py-2.5 font-medium text-xs text-muted-foreground uppercase tracking-wide">Employee</th>
+              <th className="text-left px-5 py-2.5 font-medium text-xs text-muted-foreground uppercase tracking-wide">Type</th>
+              <th className="text-left px-5 py-2.5 font-medium text-xs text-muted-foreground uppercase tracking-wide">Status</th>
+              <th className="text-left px-5 py-2.5 font-medium text-xs text-muted-foreground uppercase tracking-wide">Export</th>
+              <th className="text-left px-5 py-2.5 font-medium text-xs text-muted-foreground uppercase tracking-wide">Updated</th>
+              <th className="text-left px-5 py-2.5 font-medium text-xs text-muted-foreground uppercase tracking-wide">Actions</th>
             </tr>
           </thead>
           <tbody>
             {reports.map((r) => (
-              <tr key={r.id} className="border-b border-border last:border-0 hover:bg-accent/50 transition-colors">
-                <td className="p-3">
-                  <Link to={`/app/reports/${r.id}`} className="flex items-center gap-2 font-medium text-foreground hover:text-primary">
-                    <FileText className="w-4 h-4 text-muted-foreground" />
+              <tr key={r.id} className="border-b border-border last:border-0 hover:bg-foreground/[0.02] transition-colors">
+                <td className="px-5 py-3">
+                  <Link to={`/app/reports/${r.id}`} className="flex items-center gap-2 font-medium text-foreground hover:underline underline-offset-4">
+                    <FileText className="w-3.5 h-3.5 text-muted-foreground" />
                     {r.title}
                   </Link>
                 </td>
-                <td className="p-3 text-muted-foreground">{r.employee}</td>
-                <td className="p-3 text-muted-foreground">{r.type}</td>
-                <td className="p-3"><StatusBadge status={r.status} /></td>
-                <td className="p-3"><StatusBadge status={r.exportStatus} /></td>
-                <td className="p-3 text-muted-foreground text-xs">{r.lastUpdated}</td>
-                <td className="p-3">
+                <td className="px-5 py-3 text-muted-foreground">{r.employee}</td>
+                <td className="px-5 py-3 text-muted-foreground">{r.type}</td>
+                <td className="px-5 py-3"><StatusBadge status={r.status} /></td>
+                <td className="px-5 py-3"><StatusBadge status={r.exportStatus} /></td>
+                <td className="px-5 py-3 text-muted-foreground text-xs">{r.lastUpdated}</td>
+                <td className="px-5 py-3">
                   <div className="flex gap-1">
-                    <Button variant="ghost" size="icon" className="h-8 w-8" asChild><Link to={`/app/reports/${r.id}`}><Eye className="w-3.5 h-3.5" /></Link></Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8"><Download className="w-3.5 h-3.5" /></Button>
+                    <Link to={`/app/reports/${r.id}`} className="w-8 h-8 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"><Eye className="w-3.5 h-3.5" /></Link>
+                    <button className="w-8 h-8 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"><Download className="w-3.5 h-3.5" /></button>
                   </div>
                 </td>
               </tr>

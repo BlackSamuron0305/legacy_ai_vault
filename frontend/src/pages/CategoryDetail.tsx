@@ -51,32 +51,32 @@ function KnowledgeChat({ categoryName, onClose }: { categoryName: string; onClos
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 20 }}
       transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-      className="fixed inset-0 bg-card flex flex-col z-50 overflow-hidden"
+      className="fixed inset-0 bg-white flex flex-col z-50 overflow-hidden"
     >
       {/* Header */}
-      <div className="px-4 py-3 border-b border-border flex items-center justify-between shrink-0 bg-card">
+      <div className="px-5 py-3 border-b border-border flex items-center justify-between shrink-0 bg-white">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
-            <Brain className="w-3.5 h-3.5 text-primary-foreground" />
+          <div className="w-7 h-7 bg-foreground flex items-center justify-center">
+            <Brain className="w-3.5 h-3.5 text-background" />
           </div>
           <div>
-            <p className="text-sm font-semibold">Knowledge Assistant</p>
+            <p className="text-[13px] font-semibold">Knowledge Assistant</p>
             <p className="text-xs text-muted-foreground">{categoryName}</p>
           </div>
         </div>
-        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}>
+        <button className="h-8 w-8 flex items-center justify-center hover:bg-foreground/[0.04] transition-colors" onClick={onClose}>
           <X className="w-4 h-4" />
-        </Button>
+        </button>
       </div>
 
       {/* Messages */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-4 max-w-3xl mx-auto w-full">
         {messages.map((msg, i) => (
           <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[70%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+            <div className={`max-w-[70%] px-4 py-3 text-[13px] leading-relaxed ${
               msg.role === 'user'
-                ? 'bg-primary text-primary-foreground rounded-br-md'
-                : 'bg-muted text-foreground rounded-bl-md'
+                ? 'bg-foreground text-background'
+                : 'bg-foreground/[0.06] text-foreground'
             }`}>
               {msg.role === 'assistant' ? (
                 <div className="space-y-2">
@@ -97,10 +97,10 @@ function KnowledgeChat({ categoryName, onClose }: { categoryName: string; onClos
         ))}
         {chatMutation.isPending && (
           <div className="flex justify-start">
-            <div className="bg-muted rounded-2xl rounded-bl-md px-4 py-3 flex items-center gap-1">
-              <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50 animate-bounce" style={{ animationDelay: '0ms' }} />
-              <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50 animate-bounce" style={{ animationDelay: '150ms' }} />
-              <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50 animate-bounce" style={{ animationDelay: '300ms' }} />
+            <div className="bg-foreground/[0.06] px-4 py-3 flex items-center gap-1">
+              <div className="w-1.5 h-1.5 bg-muted-foreground/50 animate-bounce" style={{ animationDelay: '0ms' }} />
+              <div className="w-1.5 h-1.5 bg-muted-foreground/50 animate-bounce" style={{ animationDelay: '150ms' }} />
+              <div className="w-1.5 h-1.5 bg-muted-foreground/50 animate-bounce" style={{ animationDelay: '300ms' }} />
             </div>
           </div>
         )}
@@ -113,7 +113,7 @@ function KnowledgeChat({ categoryName, onClose }: { categoryName: string; onClos
             <button
               key={q}
               onClick={() => { setInput(q); }}
-              className="text-xs px-2.5 py-1.5 rounded-lg border border-border bg-muted/50 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+              className="text-xs px-2.5 py-1.5 border border-border bg-foreground/[0.03] text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06] transition-colors"
             >
               {q}
             </button>
@@ -131,17 +131,16 @@ function KnowledgeChat({ categoryName, onClose }: { categoryName: string; onClos
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
             placeholder="Ask about this knowledge..."
-            className="flex-1 h-11 px-4 rounded-xl border border-input bg-background text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            className="flex-1 h-11 px-4 border border-border bg-white text-[13px] placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-foreground/20"
             disabled={chatMutation.isPending}
           />
-          <Button
-            size="icon"
-            className="h-11 w-11 rounded-xl shrink-0"
+          <button
+            className="h-11 w-11 shrink-0 bg-foreground text-background flex items-center justify-center disabled:opacity-60 hover:bg-foreground/90 transition-colors"
             onClick={handleSend}
             disabled={!input.trim() || chatMutation.isPending}
           >
             <Send className="w-4 h-4" />
-          </Button>
+          </button>
         </div>
         <p className="text-[10px] text-muted-foreground text-center mt-1.5">AI responses are based on captured knowledge blocks</p>
       </div>
@@ -172,27 +171,27 @@ export default function CategoryDetail() {
   }
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-6">
+    <div className="p-8 max-w-6xl mx-auto space-y-6">
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" asChild><Link to="/app/knowledge"><ArrowLeft className="w-4 h-4" /></Link></Button>
         <div className="flex-1">
           <h1 className="text-xl font-semibold">{categoryName}</h1>
-          <p className="text-sm text-muted-foreground">{cardCount} knowledge blocks</p>
+          <p className="text-[13px] text-muted-foreground">{cardCount} knowledge blocks</p>
         </div>
         <motion.div
           whileHover={{ scale: 1.04 }}
           whileTap={{ scale: 0.97 }}
         >
-          <Button
+          <button
             onClick={() => setChatOpen(!chatOpen)}
             className={chatOpen
-              ? "bg-muted text-muted-foreground hover:bg-muted/80 rounded-xl px-5 h-10 gap-2 font-semibold shadow-sm"
-              : "bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl px-5 h-10 gap-2 font-semibold shadow-lg shadow-primary/25 ring-2 ring-primary/20"
+              ? "h-9 px-5 border border-border text-[13px] font-semibold text-muted-foreground hover:bg-foreground/[0.04] flex items-center gap-2 transition-colors"
+              : "h-9 px-5 bg-foreground text-background text-[13px] font-semibold flex items-center gap-2 hover:bg-foreground/90 transition-colors"
             }
           >
             {chatOpen ? <X className="w-4 h-4" /> : <Brain className="w-4 h-4" />}
             {chatOpen ? 'Close Chat' : 'Ask AI Assistant'}
-          </Button>
+          </button>
         </motion.div>
       </div>
 
@@ -204,34 +203,34 @@ export default function CategoryDetail() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             onClick={() => setChatOpen(true)}
-            className="bg-primary/5 border border-primary/20 rounded-2xl p-5 flex items-center gap-4 cursor-pointer hover:bg-primary/10 transition-colors group"
+            className="bg-foreground/[0.03] border border-border p-5 flex items-center gap-4 cursor-pointer hover:bg-foreground/[0.06] transition-colors group"
           >
-            <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center shrink-0 shadow-lg shadow-primary/25">
-              <Brain className="w-6 h-6 text-primary-foreground" />
+            <div className="w-12 h-12 bg-foreground flex items-center justify-center shrink-0">
+              <Brain className="w-6 h-6 text-background" />
             </div>
             <div className="flex-1">
-              <h3 className="font-semibold text-sm">Ask the AI Assistant about this category</h3>
+              <h3 className="font-semibold text-[13px]">Ask the AI Assistant about this category</h3>
               <p className="text-xs text-muted-foreground mt-0.5">Get instant answers about procedures, key people, systems, and dependencies from captured knowledge.</p>
             </div>
-            <div className="text-xs text-primary font-medium opacity-0 group-hover:opacity-100 transition-opacity shrink-0">Click to open →</div>
+            <div className="text-xs text-foreground font-medium opacity-0 group-hover:opacity-100 transition-opacity shrink-0">Click to open →</div>
           </motion.div>
         )}
       </AnimatePresence>
 
       {/* Summary */}
       {category?.summary && (
-        <div className="bg-card rounded-2xl border border-border shadow-card p-6">
-          <h2 className="font-semibold mb-2">Category Summary</h2>
-          <p className="text-sm text-muted-foreground leading-relaxed font-serif">{category.summary}</p>
+        <div className="bg-white border border-border p-6">
+          <h2 className="font-semibold text-[13px] uppercase tracking-wide text-muted-foreground mb-2">Category Summary</h2>
+          <p className="text-[13px] text-muted-foreground leading-relaxed font-serif">{category.summary}</p>
         </div>
       )}
 
       {/* Knowledge Blocks */}
       <div className="space-y-4">
-        <h2 className="font-semibold text-sm">Knowledge Blocks ({cardCount})</h2>
-        {cards.length === 0 && <p className="text-sm text-muted-foreground">No knowledge blocks captured yet.</p>}
+        <h2 className="text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">Knowledge Blocks ({cardCount})</h2>
+        {cards.length === 0 && <p className="text-[13px] text-muted-foreground">No knowledge blocks captured yet.</p>}
         {cards.map((block: any, i: number) => (
-          <div key={block.id || i} className="bg-card rounded-2xl border border-border shadow-card p-5">
+          <div key={block.id || i} className="bg-white border border-border p-5">
             <div className="flex items-start justify-between mb-2">
               <div>
                 <h3 className="font-medium">{block.title}</h3>
@@ -239,7 +238,7 @@ export default function CategoryDetail() {
               </div>
               {block.status && <StatusBadge status={block.status} />}
             </div>
-            <p className="text-sm text-muted-foreground leading-relaxed mt-2 font-serif">{block.content}</p>
+            <p className="text-[13px] text-muted-foreground leading-relaxed mt-2 font-serif">{block.content}</p>
           </div>
         ))}
       </div>

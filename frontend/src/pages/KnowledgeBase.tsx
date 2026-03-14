@@ -23,10 +23,10 @@ export default function KnowledgeBase() {
     return <div className="flex items-center justify-center h-64"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
   }
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
+    <div className="p-8 max-w-7xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Knowledge Base</h1>
-        <p className="text-sm text-muted-foreground mt-1">Captured institutional knowledge organized by category</p>
+        <h1 className="text-xl font-semibold tracking-tight">Knowledge Base</h1>
+        <p className="text-[13px] text-muted-foreground mt-1">Captured institutional knowledge organized by category</p>
       </div>
 
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -34,19 +34,19 @@ export default function KnowledgeBase() {
           <Link
             key={cat.id}
             to={`/app/knowledge/${cat.id}`}
-            className="bg-card rounded-2xl border border-border shadow-card p-5 hover:shadow-elevated transition-all hover:border-primary/20 group"
+            className="bg-white border border-border p-5 hover:border-foreground/20 transition-all group"
           >
             <div className="flex items-start justify-between">
-              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                {iconMap[cat.icon] || <BookOpen className="w-5 h-5" />}
+              <div className="w-9 h-9 bg-foreground/[0.06] flex items-center justify-center text-foreground group-hover:bg-foreground group-hover:text-background transition-colors">
+                {iconMap[cat.icon] || <BookOpen className="w-4 h-4" />}
               </div>
               <StatusBadge status={cat.status} />
             </div>
-            <h3 className="font-semibold mt-3">{cat.name}</h3>
-            <p className="text-sm text-muted-foreground mt-1">{cat.count} knowledge blocks · {cat.sourceSessions} sessions</p>
+            <h3 className="font-semibold text-[13px] mt-3">{cat.name}</h3>
+            <p className="text-xs text-muted-foreground mt-1">{cat.count} knowledge blocks · {cat.sourceSessions} sessions</p>
             <div className="mt-3 flex items-center gap-2">
-              <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-                <div className="h-full bg-primary rounded-full" style={{ width: `${cat.completeness}%` }} />
+              <div className="flex-1 h-1 bg-border overflow-hidden">
+                <div className="h-full bg-foreground" style={{ width: `${cat.completeness}%` }} />
               </div>
               <span className="text-xs text-muted-foreground">{cat.completeness}%</span>
             </div>

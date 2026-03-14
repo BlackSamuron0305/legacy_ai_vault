@@ -21,23 +21,25 @@ export default function Sessions() {
   });
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
+    <div className="p-8 max-w-7xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Sessions</h1>
-          <p className="text-sm text-muted-foreground mt-1">Knowledge capture sessions across your organization</p>
+          <h1 className="text-xl font-semibold tracking-tight">Sessions</h1>
+          <p className="text-[13px] text-muted-foreground mt-1">Knowledge capture sessions across your organization</p>
         </div>
-        <Button asChild><Link to="/app/sessions/new"><Plus className="w-4 h-4" /> New Session</Link></Button>
+        <Link to="/app/sessions/new" className="inline-flex items-center gap-2 bg-foreground text-background px-4 py-2 text-[13px] font-medium hover:bg-foreground/90 transition-colors">
+          <Plus className="w-3.5 h-3.5" /> New Session
+        </Link>
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-2 flex-wrap">
+      <div className="flex items-center gap-1 flex-wrap">
         {filters.map((f) => (
           <button
             key={f}
             onClick={() => setActiveFilter(f)}
-            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-              activeFilter === f ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'
+            className={`px-3 py-1.5 text-[13px] font-medium transition-colors ${
+              activeFilter === f ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground hover:bg-foreground/[0.04]'
             }`}
           >
             {f}
@@ -46,26 +48,26 @@ export default function Sessions() {
       </div>
 
       {/* Table */}
-      <div className="bg-card rounded-2xl border border-border shadow-card overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="bg-white border border-border overflow-hidden">
+        <table className="w-full text-[13px]">
           <thead>
-            <tr className="border-b border-border bg-muted/30">
-              <th className="text-left p-3 font-medium text-muted-foreground">Employee</th>
-              <th className="text-left p-3 font-medium text-muted-foreground">Department</th>
-              <th className="text-left p-3 font-medium text-muted-foreground">Status</th>
-              <th className="text-left p-3 font-medium text-muted-foreground">Transcript</th>
-              <th className="text-left p-3 font-medium text-muted-foreground">Duration</th>
-              <th className="text-left p-3 font-medium text-muted-foreground">Topics</th>
-              <th className="text-left p-3 font-medium text-muted-foreground">Coverage</th>
-              <th className="text-left p-3 font-medium text-muted-foreground">Last Activity</th>
+            <tr className="border-b border-border">
+              <th className="text-left px-5 py-2.5 font-medium text-xs text-muted-foreground uppercase tracking-wide">Employee</th>
+              <th className="text-left px-5 py-2.5 font-medium text-xs text-muted-foreground uppercase tracking-wide">Department</th>
+              <th className="text-left px-5 py-2.5 font-medium text-xs text-muted-foreground uppercase tracking-wide">Status</th>
+              <th className="text-left px-5 py-2.5 font-medium text-xs text-muted-foreground uppercase tracking-wide">Transcript</th>
+              <th className="text-left px-5 py-2.5 font-medium text-xs text-muted-foreground uppercase tracking-wide">Duration</th>
+              <th className="text-left px-5 py-2.5 font-medium text-xs text-muted-foreground uppercase tracking-wide">Topics</th>
+              <th className="text-left px-5 py-2.5 font-medium text-xs text-muted-foreground uppercase tracking-wide">Coverage</th>
+              <th className="text-left px-5 py-2.5 font-medium text-xs text-muted-foreground uppercase tracking-wide">Last Activity</th>
             </tr>
           </thead>
           <tbody>
             {filtered.map((s) => (
-              <tr key={s.id} className="border-b border-border last:border-0 hover:bg-accent/50 transition-colors">
-                <td className="p-3">
+              <tr key={s.id} className="border-b border-border last:border-0 hover:bg-foreground/[0.02] transition-colors">
+                <td className="px-5 py-3">
                   <Link to={`/app/sessions/${s.id}`} className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-primary/10 text-primary text-xs font-semibold flex items-center justify-center">
+                    <div className="w-7 h-7 bg-foreground text-background text-xs font-semibold flex items-center justify-center">
                       {s.employeeName.split(' ').map(n => n[0]).join('')}
                     </div>
                     <div>
@@ -74,20 +76,20 @@ export default function Sessions() {
                     </div>
                   </Link>
                 </td>
-                <td className="p-3 text-muted-foreground">{s.department}</td>
-                <td className="p-3"><StatusBadge status={s.status} /></td>
-                <td className="p-3"><StatusBadge status={s.transcriptStatus} /></td>
-                <td className="p-3 text-muted-foreground">{s.duration}</td>
-                <td className="p-3 text-muted-foreground">{s.topicsExtracted}</td>
-                <td className="p-3">
+                <td className="px-5 py-3 text-muted-foreground">{s.department}</td>
+                <td className="px-5 py-3"><StatusBadge status={s.status} /></td>
+                <td className="px-5 py-3"><StatusBadge status={s.transcriptStatus} /></td>
+                <td className="px-5 py-3 text-muted-foreground">{s.duration}</td>
+                <td className="px-5 py-3 text-muted-foreground">{s.topicsExtracted}</td>
+                <td className="px-5 py-3">
                   <div className="flex items-center gap-2">
-                    <div className="w-14 h-1.5 rounded-full bg-muted overflow-hidden">
-                      <div className="h-full bg-primary rounded-full" style={{ width: `${s.coverageScore}%` }} />
+                    <div className="w-14 h-1 bg-border overflow-hidden">
+                      <div className="h-full bg-foreground" style={{ width: `${s.coverageScore}%` }} />
                     </div>
                     <span className="text-xs text-muted-foreground">{s.coverageScore}%</span>
                   </div>
                 </td>
-                <td className="p-3 text-muted-foreground text-xs">{s.lastActivity}</td>
+                <td className="px-5 py-3 text-muted-foreground text-xs">{s.lastActivity}</td>
               </tr>
             ))}
           </tbody>

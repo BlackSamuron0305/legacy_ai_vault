@@ -1,9 +1,8 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import {
-  LayoutDashboard, Mic, BookOpen, FileText, Upload, Users, BarChart3, Settings, ChevronLeft, Brain, LogOut
+  LayoutDashboard, Mic, BookOpen, FileText, Upload, Users, BarChart3, Settings, ChevronLeft, LogOut
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 
 const navItems = [
@@ -33,23 +32,22 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
 
   return (
     <aside className={cn(
-      "h-screen flex flex-col border-r border-border bg-sidebar transition-all duration-200 shrink-0",
-      collapsed ? "w-16" : "w-60"
+      "h-screen flex flex-col border-r border-border bg-white transition-all duration-200 shrink-0",
+      collapsed ? "w-14" : "w-56"
     )}>
-      <div className={cn("p-4 flex items-center", collapsed ? "justify-center" : "")}>
+      {/* Logo */}
+      <div className={cn("h-14 flex items-center border-b border-border px-4", collapsed ? "justify-center px-2" : "")}>
         {collapsed ? (
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shrink-0">
-            <Brain className="w-4 h-4 text-primary-foreground" />
-          </div>
+          <img src="/logo-icon.svg" alt="LegacyAI" className="h-6 w-6 dark:invert" />
         ) : (
-          <div className="flex items-center gap-3">
-            <img src="/logo-icon.svg" alt="LegacyAI icon" className="h-8 w-8 shrink-0 dark:invert" />
-            <span className="text-sm font-semibold text-foreground leading-tight">Legacy AI</span>
-          </div>
+          <Link to="/" className="flex items-center gap-2.5">
+            <img src="/logo-icon.svg" alt="LegacyAI" className="h-6 w-6 dark:invert" />
+            <span className="text-sm font-semibold text-foreground tracking-tight">Legacy AI</span>
+          </Link>
         )}
       </div>
 
-      <nav className="flex-1 px-2 space-y-0.5 mt-2">
+      <nav className="flex-1 py-3 px-2 space-y-px">
         {navItems.map((item) => {
           const isActive = location.pathname === item.url || 
             (item.url !== '/app' && location.pathname.startsWith(item.url));
@@ -58,51 +56,49 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
               key={item.title}
               to={item.url}
               className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                "flex items-center gap-2.5 px-3 py-2 text-[13px] font-medium transition-colors",
                 isActive
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:text-foreground hover:bg-accent",
+                  ? "text-foreground bg-foreground/[0.06]"
+                  : "text-muted-foreground hover:text-foreground hover:bg-foreground/[0.04]",
                 collapsed && "justify-center px-2"
               )}
             >
-              <item.icon className="w-[18px] h-[18px] shrink-0" />
+              <item.icon className="w-4 h-4 shrink-0" />
               {!collapsed && <span>{item.title}</span>}
             </Link>
           );
         })}
       </nav>
 
-      <div className="p-2 border-t border-border">
+      <div className="py-2 px-2 border-t border-border space-y-px">
         <Link
           to="/app/settings"
           className={cn(
-            "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors",
-            location.pathname.startsWith('/app/settings') && "bg-primary/10 text-primary",
+            "flex items-center gap-2.5 px-3 py-2 text-[13px] font-medium text-muted-foreground hover:text-foreground hover:bg-foreground/[0.04] transition-colors",
+            location.pathname.startsWith('/app/settings') && "text-foreground bg-foreground/[0.06]",
             collapsed && "justify-center px-2"
           )}
         >
-          <Settings className="w-[18px] h-[18px] shrink-0" />
+          <Settings className="w-4 h-4 shrink-0" />
           {!collapsed && <span>Settings</span>}
         </Link>
         <button
           onClick={handleLogout}
           className={cn(
-            "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors",
+            "w-full flex items-center gap-2.5 px-3 py-2 text-[13px] font-medium text-muted-foreground hover:text-destructive transition-colors",
             collapsed && "justify-center px-2"
           )}
         >
-          <LogOut className="w-[18px] h-[18px] shrink-0" />
+          <LogOut className="w-4 h-4 shrink-0" />
           {!collapsed && <span>Logout</span>}
         </button>
-        <Button
-          variant="ghost"
-          size="sm"
+        <button
           onClick={onToggle}
-          className={cn("w-full mt-1", collapsed ? "px-2" : "")}
+          className={cn("w-full flex items-center gap-2.5 px-3 py-1.5 text-muted-foreground hover:text-foreground transition-colors", collapsed ? "justify-center px-2" : "")}
         >
-          <ChevronLeft className={cn("w-4 h-4 transition-transform", collapsed && "rotate-180")} />
-          {!collapsed && <span className="text-xs text-muted-foreground">Collapse</span>}
-        </Button>
+          <ChevronLeft className={cn("w-3.5 h-3.5 transition-transform", collapsed && "rotate-180")} />
+          {!collapsed && <span className="text-xs">Collapse</span>}
+        </button>
       </div>
     </aside>
   );
