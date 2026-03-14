@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Clock, AlertCircle, Loader2, Square, Mic } from "lucide-react";
+import { Clock, AlertCircle, Loader2, Square } from "lucide-react";
 import { api } from "@/lib/api";
 
 const WIDGET_AGENT_ID = "agent_8901kkq04wagefmr6qtbvw8ab0z2";
@@ -12,7 +12,10 @@ declare global {
   namespace JSX {
     interface IntrinsicElements {
       "elevenlabs-convai": React.DetailedHTMLProps<
-        React.HTMLAttributes<HTMLElement> & { "agent-id": string },
+        React.HTMLAttributes<HTMLElement> & {
+          "agent-id": string;
+          variant?: string;
+        },
         HTMLElement
       >;
     }
@@ -195,20 +198,16 @@ export default function Interview() {
           <div className="max-w-2xl mx-auto space-y-8">
             {/* Status Card */}
             <div className="bg-card rounded-2xl border border-border shadow-card p-8 text-center space-y-4">
-              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
-                <Mic className="w-8 h-8 text-primary" />
-              </div>
               <div>
-                <h2 className="text-xl font-semibold">Interview in Progress</h2>
+                <h2 className="text-xl font-semibold">Interview with {employeeName}</h2>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Use the voice widget in the bottom-right corner to conduct the interview with {employeeName}.
+                  Click the call button in the widget to start the voice conversation.
+                  The AI interviewer will guide you through key knowledge areas.
                 </p>
               </div>
-              <div className="flex items-center justify-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-destructive animate-pulse" />
-                <span className="text-sm font-medium text-muted-foreground">
-                  Recording · {formatElapsed(elapsedSeconds)}
-                </span>
+              <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                <Clock className="w-4 h-4" />
+                <span>{formatElapsed(elapsedSeconds)} elapsed</span>
               </div>
             </div>
 
@@ -218,7 +217,7 @@ export default function Interview() {
               <ul className="text-sm text-muted-foreground space-y-2">
                 <li className="flex items-start gap-2">
                   <span className="font-mono text-xs bg-muted rounded px-1.5 py-0.5 mt-0.5 shrink-0">1</span>
-                  Click the voice widget bubble in the bottom-right corner to start speaking.
+                  Click the call button in the widget to start the voice conversation.
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="font-mono text-xs bg-muted rounded px-1.5 py-0.5 mt-0.5 shrink-0">2</span>
@@ -226,7 +225,7 @@ export default function Interview() {
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="font-mono text-xs bg-muted rounded px-1.5 py-0.5 mt-0.5 shrink-0">3</span>
-                  When finished, click <strong>End &amp; Process</strong> above. The transcript will be fetched from ElevenLabs and processed automatically.
+                  When finished, click <strong>End &amp; Process</strong> above. The transcript is fetched automatically from ElevenLabs.
                 </li>
               </ul>
             </div>
@@ -283,7 +282,7 @@ export default function Interview() {
 
       {/* ElevenLabs Conversational AI Widget */}
       <div ref={widgetContainerRef}>
-        <elevenlabs-convai agent-id={WIDGET_AGENT_ID} />
+        <elevenlabs-convai agent-id={WIDGET_AGENT_ID} variant="full" />
       </div>
     </div>
   );
