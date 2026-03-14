@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Mic, FileCheck, BookOpen, Upload, Shield, Users, BarChart3 } from "lucide-react";
 import { motion, useScroll, useTransform } from "framer-motion";
+import { PublicHeader } from "@/components/layout/PublicHeader";
 
 const fadeUp = {
   initial: { opacity: 0, y: 20 },
@@ -47,26 +48,9 @@ export default function Landing() {
   const extraPad = useTransform(howProgress, [0, 0.65], [0, 180]);
 
   return (
-    <div className="min-h-screen bg-background overflow-x-hidden">
+    <div className="min-h-screen bg-background overflow-x-clip">
 
-      {/* ── Header ── */}
-      <header className="border-b border-border/60 bg-background/90 backdrop-blur-sm sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-3">
-            <img src="/logo-icon.svg" alt="LegacyAI icon" className="h-8 w-8 shrink-0 dark:invert" />
-            <span className="text-sm font-semibold text-foreground">Legacy AI</span>
-          </Link>
-          <nav className="hidden md:flex items-center gap-8 text-sm text-muted-foreground">
-            <a href="#features" className="hover:text-foreground transition-colors">Features</a>
-            <a href="#how-it-works" className="hover:text-foreground transition-colors">How It Works</a>
-            <a href="#use-cases" className="hover:text-foreground transition-colors">Use Cases</a>
-          </nav>
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" asChild><Link to="/login">Sign In</Link></Button>
-            <Button size="sm" variant="dark" asChild><Link to="/register">Get Started</Link></Button>
-          </div>
-        </div>
-      </header>
+      <PublicHeader />
 
       {/* ── Hero ── */}
       <section className="relative py-28 md:py-36 overflow-hidden">

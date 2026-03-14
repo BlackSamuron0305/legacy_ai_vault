@@ -2,6 +2,7 @@ import { useParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, ArrowRight, CheckCircle2 } from "lucide-react";
 import { motion } from "framer-motion";
+import { PublicHeader } from "@/components/layout/PublicHeader";
 
 const useCases: Record<string, { title: string; image: string; subtitle: string; description: string; benefits: string[] }> = {
   "engineering-handover": {
@@ -70,7 +71,7 @@ export default function UseCaseDetail() {
   }
 
   return (
-    <div className="min-h-screen bg-background overflow-x-hidden">
+    <div className="min-h-screen bg-background overflow-x-clip">
       {/* Blobs */}
       <div aria-hidden className="pointer-events-none fixed inset-0 overflow-hidden z-0">
         <div className="grain absolute inset-0" />
@@ -79,17 +80,7 @@ export default function UseCaseDetail() {
         <div className="glow-blob absolute top-1/2 right-0 w-[320px] h-[320px] bg-indigo-200/20" />
       </div>
 
-      <header className="relative z-50 border-b border-border/60 bg-background/90 backdrop-blur-sm sticky top-0">
-        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-3">
-            <img src="/logo-icon.svg" alt="LegacyAI icon" className="h-8 w-8 shrink-0 dark:invert" />
-            <span className="text-sm font-semibold text-foreground">Legacy AI</span>
-          </Link>
-          <Button variant="ghost" size="sm" asChild>
-            <Link to="/#use-cases"><ArrowLeft className="w-4 h-4 mr-1" /> Back</Link>
-          </Button>
-        </div>
-      </header>
+      <PublicHeader />
 
       <section className="relative z-10 py-16 md:py-24">
         <div className="max-w-6xl mx-auto px-6">

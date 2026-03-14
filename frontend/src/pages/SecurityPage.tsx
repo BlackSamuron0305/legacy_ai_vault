@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Lock, Shield, Eye, Server, FileCheck, RefreshCw } from "lucide-react";
 import { motion } from "framer-motion";
+import { PublicHeader } from "@/components/layout/PublicHeader";
 
 const pillars = [
   {
@@ -38,25 +39,14 @@ const pillars = [
 
 export default function Security() {
   return (
-    <div className="min-h-screen bg-background overflow-x-hidden">
+    <div className="min-h-screen bg-background overflow-x-clip">
       <div aria-hidden className="pointer-events-none fixed inset-0 overflow-hidden z-0">
         <div className="grain absolute inset-0" />
         <div className="glow-blob animate-float-slow absolute top-0 right-0 w-[500px] h-[400px] bg-blue-200/25" />
         <div className="glow-blob animate-float-slower absolute bottom-0 left-1/4 w-[400px] h-[350px] bg-indigo-200/20" />
       </div>
 
-      <header className="relative z-50 border-b border-border/60 bg-background/90 backdrop-blur-sm sticky top-0">
-        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-3">
-            <img src="/logo-icon.svg" alt="LegacyAI" className="h-8 w-8 shrink-0 dark:invert" />
-            <span className="text-sm font-semibold text-foreground">Legacy AI</span>
-          </Link>
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" asChild><Link to="/login">Sign In</Link></Button>
-            <Button size="sm" variant="dark" asChild><Link to="/register">Get Started</Link></Button>
-          </div>
-        </div>
-      </header>
+      <PublicHeader />
 
       <section className="relative z-10 pt-24 pb-16">
         <div className="max-w-6xl mx-auto px-6">
