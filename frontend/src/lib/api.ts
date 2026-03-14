@@ -1,3 +1,5 @@
+import { getSessionClassification } from "@/hooks/useClassification";
+
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
 class ApiClient {
@@ -69,7 +71,7 @@ class ApiClient {
     }
 
     async logout() {
-        await this.request('/auth/logout', { method: 'POST' }).catch(() => {});
+        await this.request('/auth/logout', { method: 'POST' }).catch(() => { });
         this.setToken(null);
     }
 
@@ -123,10 +125,10 @@ class ApiClient {
         return this.request<any>(`/sessions/${id}`);
     }
 
-    async createSession(employeeId: string) {
+    async createSession(employeeId?: string | null) {
         return this.request<any>('/sessions', {
             method: 'POST',
-            body: JSON.stringify({ employeeId }),
+            body: JSON.stringify(employeeId ? { employeeId } : {}),
         });
     }
 
@@ -136,6 +138,10 @@ class ApiClient {
 
     async getSessionToken(id: string) {
         return this.request<{ signed_url: string }>(`/sessions/${id}/token`);
+    }
+
+    async getSessionClassification(id: string) {
+        return getSessionClassification(id);
     }
 
     async endSession(id: string, data: { transcript: string; duration: string; elevenlabsConversationId?: string }) {
@@ -161,89 +167,91 @@ class ApiClient {
         return this.request<any>(`/sessions/${id}/processing`);
     }
 
+}
+
     // Knowledge
     async getKnowledgeCategories() {
-        return this.request<any[]>('/knowledge/categories');
-    }
+    return this.request<any[]>('/knowledge/categories');
+}
 
     async getKnowledgeCards() {
-        return this.request<any[]>('/knowledge/cards');
-    }
+    return this.request<any[]>('/knowledge/cards');
+}
 
     async getKnowledgeStats() {
-        return this.request<any>('/knowledge/stats');
-    }
+    return this.request<any>('/knowledge/stats');
+}
 
     async getCategoryDetail(categoryName: string) {
-        return this.request<any>(`/knowledge/${encodeURIComponent(categoryName)}`);
-    }
+    return this.request<any>(`/knowledge/${encodeURIComponent(categoryName)}`);
+}
 
-    async chatWithCategory(categoryName: string, question: string, history?: any[]) {
-        return this.request<any>(`/knowledge/${encodeURIComponent(categoryName)}/chat`, {
-            method: 'POST',
-            body: JSON.stringify({ question, history }),
-        });
-    }
+    async chatWithCategory(categoryName: string, question: string, history ?: any[]) {
+    return this.request<any>(`/knowledge/${encodeURIComponent(categoryName)}/chat`, {
+        method: 'POST',
+        body: JSON.stringify({ question, history }),
+    });
+}
 
     async searchKnowledge(query: string) {
-        return this.request<any[]>('/knowledge/search', {
-            method: 'POST',
-            body: JSON.stringify({ query }),
-        });
-    }
+    return this.request<any[]>('/knowledge/search', {
+        method: 'POST',
+        body: JSON.stringify({ query }),
+    });
+}
 
     // Reports
     async getReports() {
-        return this.request<any[]>('/reports');
-    }
+    return this.request<any[]>('/reports');
+}
 
     async getReport(id: string) {
-        return this.request<any>(`/reports/${id}`);
-    }
+    return this.request<any>(`/reports/${id}`);
+}
 
     async createReport(data: any) {
-        return this.request<any>('/reports', {
-            method: 'POST',
-            body: JSON.stringify(data),
-        });
-    }
+    return this.request<any>('/reports', {
+        method: 'POST',
+        body: JSON.stringify(data),
+    });
+}
 
     async updateReport(id: string, data: any) {
-        return this.request<any>(`/reports/${id}`, {
-            method: 'PUT',
-            body: JSON.stringify(data),
-        });
-    }
+    return this.request<any>(`/reports/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+    });
+}
 
     // Analytics
     async getAnalyticsCoverage() {
-        return this.request<any[]>('/analytics/coverage');
-    }
+    return this.request<any[]>('/analytics/coverage');
+}
 
     async getAnalyticsGaps() {
-        return this.request<any[]>('/analytics/gaps');
-    }
+    return this.request<any[]>('/analytics/gaps');
+}
 
     async getAnalyticsSummary() {
-        return this.request<any>('/analytics/summary');
-    }
+    return this.request<any>('/analytics/summary');
+}
 
     // Activity
     async getActivityFeed() {
-        return this.request<any[]>('/activity');
-    }
+    return this.request<any[]>('/activity');
+}
 
     // Chat (RAG)
-    async askChat(question: string, sessionId?: string) {
-        return this.request<any>('/chat/ask', {
-            method: 'POST',
-            body: JSON.stringify({ question, sessionId }),
-        });
-    }
+    async askChat(question: string, sessionId ?: string) {
+    return this.request<any>('/chat/ask', {
+        method: 'POST',
+        body: JSON.stringify({ question, sessionId }),
+    });
+}
 
     async getChatHistory(sessionId: string) {
-        return this.request<any[]>(`/chat/history/${sessionId}`);
-    }
+    return this.request<any[]>(`/chat/history/${sessionId}`);
+}
 }
 
 export const api = new ApiClient();

@@ -17,8 +17,12 @@ export default function NewSession() {
   const navigate = useNavigate();
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
 
+  const getInitials = (name?: string | null) => {
+    if (!name) return 'NA';
+    return name.split(' ').filter(Boolean).map((n) => n[0]).join('').slice(0, 2).toUpperCase();
+  };
+
   const handleStart = async () => {
-    if (!selectedEmployeeId) return;
     try {
       const session = await createSession.mutateAsync(selectedEmployeeId);
       navigate(`/app/sessions/${session.id}`);
@@ -34,10 +38,11 @@ export default function NewSession() {
       {/* Employee Selector */}
       <div className="bg-card rounded-2xl border border-border shadow-card p-6 space-y-4">
         <h2 className="font-semibold text-sm">Select Employee</h2>
+        <p className="text-xs text-amber-600">Temporary test mode: you can start without selecting an employee. Roll back this bypass before commit.</p>
         <div className="grid grid-cols-2 gap-3">
           {employees.filter((e: any) => e.sessionStatus !== 'completed').slice(0, 4).map((e: any) => (
             <button key={e.id} onClick={() => setSelectedEmployeeId(e.id)} className={`flex items-center gap-3 p-3 rounded-xl border transition-colors text-left ${selectedEmployeeId === e.id ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/30 hover:bg-primary/5'}`}>
-              <div className="w-10 h-10 rounded-full bg-primary/10 text-primary text-sm font-semibold flex items-center justify-center">{e.avatarInitials || e.name?.split(' ').map((n: string) => n[0]).join('')}</div>
+              <div className="w-10 h-10 rounded-full bg-primary/10 text-primary text-sm font-semibold flex items-center justify-center">{e.avatarInitials || getInitials(e.name)}</div>
               <div>
                 <p className="text-sm font-medium">{e.name}</p>
                 <p className="text-xs text-muted-foreground">{e.role} · {e.department}</p>
@@ -76,7 +81,7 @@ export default function NewSession() {
 
       <div className="flex justify-end gap-3">
         <Button variant="outline" asChild><Link to="/app/sessions">Cancel</Link></Button>
-        <Button onClick={handleStart} disabled={!selectedEmployeeId || createSession.isPending}>
+        <Button onClick={handleStart} disabled={createSession.isPending}>
           {createSession.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mic className="w-4 h-4" />} Start Session
         </Button>
       </div>

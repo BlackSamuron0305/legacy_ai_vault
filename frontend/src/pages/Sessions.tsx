@@ -11,6 +11,11 @@ export default function Sessions() {
   const [activeFilter, setActiveFilter] = useState('All');
   const { data: sessions = [], isLoading } = useSessions();
 
+  const getInitials = (name?: string | null) => {
+    if (!name) return 'NA';
+    return name.split(' ').filter(Boolean).map((n) => n[0]).join('').slice(0, 2).toUpperCase();
+  };
+
   if (isLoading) {
     return <div className="flex items-center justify-center h-64"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
   }
@@ -66,15 +71,15 @@ export default function Sessions() {
                 <td className="p-3">
                   <Link to={`/app/sessions/${s.id}`} className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded-full bg-primary/10 text-primary text-xs font-semibold flex items-center justify-center">
-                      {s.employeeName.split(' ').map(n => n[0]).join('')}
+                      {getInitials(s.employeeName)}
                     </div>
                     <div>
-                      <p className="font-medium text-foreground">{s.employeeName}</p>
-                      <p className="text-xs text-muted-foreground">{s.employeeRole}</p>
+                      <p className="font-medium text-foreground">{s.employeeName || 'No employee selected'}</p>
+                      <p className="text-xs text-muted-foreground">{s.employeeRole || 'Test mode'}</p>
                     </div>
                   </Link>
                 </td>
-                <td className="p-3 text-muted-foreground">{s.department}</td>
+                <td className="p-3 text-muted-foreground">{s.department || 'N/A'}</td>
                 <td className="p-3"><StatusBadge status={s.status} /></td>
                 <td className="p-3"><StatusBadge status={s.transcriptStatus} /></td>
                 <td className="p-3 text-muted-foreground">{s.duration}</td>

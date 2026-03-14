@@ -1,6 +1,7 @@
 import os
 import requests
 import logging
+import time
 from .classification_prompts import SYSTEM_PROMPT_REPORT_CLASSIFICATION, get_classification_prompt
 
 class ClassificationService:
@@ -78,10 +79,10 @@ class ClassificationService:
                 
         except requests.exceptions.RequestException as e:
             logging.error(f"Error calling classification API: {e}")
-            return self._create_error_classification(f"API request failed: {str(e)}")
+            raise self._create_error_classification(f"API request failed: {str(e)}")
         except Exception as e:
             logging.error(f"Unexpected error in classification: {e}")
-            return self._create_error_classification(f"Classification failed: {str(e)}")
+            raise self._create_error_classification(f"Classification failed: {str(e)}")
     
     def _create_fallback_classification(self, classification_text):
         """

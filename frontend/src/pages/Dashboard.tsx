@@ -18,6 +18,11 @@ export default function Dashboard() {
     return <div className="flex items-center justify-center h-64"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
   }
 
+  const getInitials = (name?: string | null) => {
+    if (!name) return "NA";
+    return name.split(' ').filter(Boolean).map((n) => n[0]).join('').slice(0, 2).toUpperCase();
+  };
+
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
@@ -66,11 +71,11 @@ export default function Dashboard() {
               <Link to={`/app/sessions/${s.id}`} key={s.id} className="flex items-center justify-between p-4 hover:bg-accent/50 transition-colors">
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-full bg-primary/10 text-primary text-xs font-semibold flex items-center justify-center">
-                    {s.employeeName.split(' ').map(n => n[0]).join('')}
+                    {getInitials(s.employeeName)}
                   </div>
                   <div>
-                    <p className="text-sm font-medium">{s.employeeName}</p>
-                    <p className="text-xs text-muted-foreground">{s.employeeRole} · {s.department}</p>
+                    <p className="text-sm font-medium">{s.employeeName || 'No employee selected'}</p>
+                    <p className="text-xs text-muted-foreground">{s.employeeRole || 'Test mode'} · {s.department || 'N/A'}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -124,7 +129,7 @@ export default function Dashboard() {
                 <tr key={e.id} className="border-b border-border last:border-0 hover:bg-accent/50 transition-colors">
                   <td className="p-3">
                     <Link to={`/app/employees/${e.id}`} className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-full bg-primary/10 text-primary text-xs font-semibold flex items-center justify-center">{e.avatarInitials || e.name?.split(' ').map((n: string) => n[0]).join('')}</div>
+                      <div className="w-7 h-7 rounded-full bg-primary/10 text-primary text-xs font-semibold flex items-center justify-center">{e.avatarInitials || getInitials(e.name)}</div>
                       <div>
                         <p className="font-medium">{e.name}</p>
                         <p className="text-xs text-muted-foreground">{e.role}</p>

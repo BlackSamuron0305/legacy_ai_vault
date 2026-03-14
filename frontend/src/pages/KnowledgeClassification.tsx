@@ -112,34 +112,8 @@ export default function KnowledgeClassification() {
       try {
         setLoading(true);
         setError(null);
-        
-        // Fetch the session/report first
-        const sessionResponse = await api.getSession(id);
-        const report = sessionResponse.transcript || sessionResponse.summary;
-        
-        if (!report) {
-          setError("No report found to classify");
-          return;
-        }
 
-        // Get employee context
-        const employeeContext = `${sessionResponse.employee?.role || 'Unknown'} in ${sessionResponse.employee?.department || 'Unknown'} department`;
-
-        // Classify the report
-        const classificationResponse = await fetch(`${import.meta.env.VITE_AI_SERVICE_URL}/api/classify-report`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            report: report,
-            employee_context: employeeContext
-          })
-        });
-
-        if (!classificationResponse.ok) {
-          throw new Error('Classification failed');
-        }
-
-        const result = await classificationResponse.json();
+        const result = await api.getSessionClassification(id);
         setClassification(result.classification);
       } catch (err: any) {
         setError(err?.message || 'Failed to classify report');
