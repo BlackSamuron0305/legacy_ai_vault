@@ -8,6 +8,7 @@ import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import RegisterCompany from "./pages/RegisterCompany";
 import ForgotPassword from "./pages/ForgotPassword";
 import Onboarding from "./pages/Onboarding";
 import Dashboard from "./pages/Dashboard";
@@ -27,6 +28,7 @@ import Employees from "./pages/Employees";
 import EmployeeDetail from "./pages/EmployeeDetail";
 import Analytics from "./pages/Analytics";
 import DemoMode from "./pages/DemoMode";
+import Admin from "./pages/Admin";
 import UseCaseDetail from "./pages/UseCaseDetail";
 import Features from "./pages/Features";
 import Pricing from "./pages/Pricing";
@@ -58,6 +60,7 @@ const AppRoutes = () => (
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/register/company" element={<RegisterCompany />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/onboarding" element={<Onboarding />} />
       <Route path="/demo" element={<DemoMode />} />
@@ -88,6 +91,7 @@ const AppRoutes = () => (
         <Route path="employees" element={<Employees />} />
         <Route path="employees/:id" element={<EmployeeDetail />} />
         <Route path="analytics" element={<Analytics />} />
+        <Route path="admin" element={<Admin />} />
 
         <Route path="settings" element={<Settings />}>
           <Route index element={<SettingsIndex />} />

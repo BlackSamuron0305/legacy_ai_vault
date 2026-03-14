@@ -9,8 +9,17 @@ export function TopNav() {
 
   return (
     <header className="h-14 border-b border-border bg-white flex items-center justify-between px-6 shrink-0">
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2.5">
         <span className="text-[13px] font-medium text-foreground">{user?.companyName || user?.workspaceName || 'My Workspace'}</span>
+        {user?.role === 'owner' && (
+          <span className="text-[10px] font-semibold uppercase tracking-wider border border-foreground/25 text-foreground/70 px-1.5 py-0.5 leading-none">Company</span>
+        )}
+        {user?.role === 'admin' && (
+          <span className="text-[10px] font-semibold uppercase tracking-wider border border-foreground/25 text-foreground/70 px-1.5 py-0.5 leading-none">Admin</span>
+        )}
+        {user?.role && user.role !== 'admin' && user.role !== 'owner' && (
+          <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground border border-border px-1.5 py-0.5 leading-none">{user.role}</span>
+        )}
       </div>
 
       <div className="flex-1 max-w-md mx-8">

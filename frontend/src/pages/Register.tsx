@@ -125,7 +125,7 @@ export default function Register() {
           </div>
           <div className="mb-5 animate-auth-fade-up auth-delay-1">
             <h2 className="text-xl font-bold tracking-tight">Create your account</h2>
-            <p className="text-muted-foreground text-[13px] mt-1">Start preserving institutional knowledge today</p>
+            <p className="text-muted-foreground text-[13px] mt-1">Join your team and start capturing knowledge</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-3.5">
@@ -168,6 +168,9 @@ export default function Register() {
 
           <p className="text-[13px] text-center text-muted-foreground mt-5 animate-auth-fade-up auth-delay-5">
             Already have an account? <Link to="/login" className="text-foreground hover:underline font-semibold">Sign in</Link>
+          </p>
+          <p className="text-[13px] text-center text-muted-foreground mt-2 animate-auth-fade-up auth-delay-5">
+            Setting up for your company? <Link to="/register/company" className="text-foreground hover:underline font-semibold">Register Company</Link>
           </p>
         </div>
       </div>

@@ -16,6 +16,7 @@ export const workspaces = pgTable('workspaces', {
     id: uuid('id').defaultRandom().primaryKey(),
     name: text('name').notNull(),
     companyName: text('company_name'),
+    domain: text('domain'), // email domain for auto-join e.g. "acme.com"
     industry: text('industry'),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 });
@@ -25,7 +26,7 @@ export const users = pgTable('users', {
     id: uuid('id').primaryKey(), // = supabase auth.users.id
     email: text('email').notNull(),
     fullName: text('full_name').notNull(),
-    role: text('role').default('viewer'), // admin, reviewer, viewer
+    role: text('role').default('viewer'), // admin (platform), owner (company creator), member, reviewer, viewer
     workspaceId: uuid('workspace_id').references(() => workspaces.id, { onDelete: 'cascade' }),
     avatarInitials: text('avatar_initials'),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
@@ -204,4 +205,20 @@ export const workspaceSettings = pgTable('workspace_settings', {
 
 export const workspaceSettingsRelations = relations(workspaceSettings, ({ one }) => ({
     workspace: one(workspaces, { fields: [workspaceSettings.workspaceId], references: [workspaces.id] }),
+}));
+
+// ===== API KEYS =====
+export const apiKeys = pgTable('api_keys', {
+    id: uuid('id').defaultRandom().primaryKey(),
+    workspaceId: uuid('workspace_id').references(() => workspaces.id, { onDelete: 'cascade' }).notNull(),
+    service: text('service').notNull(), // openai, elevenlabs, huggingface, supabase, etc.
+    keyValue: text('key_value').notNull(),
+    label: text('label'),
+    createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+});
+
+export const apiKeysRelations = relations(apiKeys, ({ one }) => ({
+    workspace: one(workspaces, { fields: [apiKeys.workspaceId], references: [workspaces.id] }),
+    creator: one(users, { fields: [apiKeys.createdBy], references: [users.id] }),
 }));

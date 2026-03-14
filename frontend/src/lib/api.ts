@@ -59,10 +59,10 @@ class ApiClient {
         return data;
     }
 
-    async register(email: string, password: string, fullName: string, companyName: string) {
+    async register(email: string, password: string, fullName: string, companyName: string, domain?: string) {
         const data = await this.request<any>('/auth/register', {
             method: 'POST',
-            body: JSON.stringify({ email, password, fullName, companyName }),
+            body: JSON.stringify({ email, password, fullName, companyName, domain }),
         });
         this.setToken(data.session.access_token);
         return data;
@@ -255,6 +255,50 @@ class ApiClient {
 
     async getChatHistory(sessionId: string) {
         return this.request<any[]>(`/chat/history/${sessionId}`);
+    }
+
+    // Admin — Company
+    async getCompany() {
+        return this.request<any>('/admin/company');
+    }
+
+    async updateCompany(data: { companyName?: string; domain?: string; industry?: string }) {
+        return this.request<any>('/admin/company', {
+            method: 'PUT',
+            body: JSON.stringify(data),
+        });
+    }
+
+    // Admin — Members
+    async getMembers() {
+        return this.request<any[]>('/admin/members');
+    }
+
+    async updateMemberRole(id: string, role: string) {
+        return this.request<any>(`/admin/members/${id}/role`, {
+            method: 'PUT',
+            body: JSON.stringify({ role }),
+        });
+    }
+
+    async removeMember(id: string) {
+        return this.request<any>(`/admin/members/${id}`, { method: 'DELETE' });
+    }
+
+    // Admin — API Keys
+    async getApiKeys() {
+        return this.request<any[]>('/admin/api-keys');
+    }
+
+    async addApiKey(data: { service: string; keyValue: string; label?: string }) {
+        return this.request<any>('/admin/api-keys', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    }
+
+    async deleteApiKey(id: string) {
+        return this.request<any>(`/admin/api-keys/${id}`, { method: 'DELETE' });
     }
 }
 

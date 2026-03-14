@@ -15,7 +15,8 @@ const supabase = createClient(
 // POST /api/auth/register
 router.post('/register', async (req: Request, res: Response) => {
     try {
-        const { email, password, fullName, companyName } = req.body;
+        const { email, password, fullName, companyName, domain: explicitDomain } = req.body;
+        const emailDomain = email.split('@')[1]?.toLowerCase();
 
         // Create Supabase auth user
         const { data: authData, error: authError } = await supabase.auth.admin.createUser({
@@ -28,11 +29,28 @@ router.post('/register', async (req: Request, res: Response) => {
             return res.status(400).json({ error: authError.message });
         }
 
-        // Create workspace
-        const [workspace] = await db.insert(workspaces).values({
-            name: companyName || `${fullName}'s Workspace`,
-            companyName,
-        }).returning();
+        // Check if a workspace with this email domain already exists
+        let workspace;
+        let userRole = 'member';
+        const [existingWs] = emailDomain
+            ? await db.select().from(workspaces).where(eq(workspaces.domain, emailDomain))
+            : [];
+
+        if (existingWs && !explicitDomain) {
+            // Join existing company (employee flow)
+            workspace = existingWs;
+            userRole = 'member';
+        } else {
+            // Create new workspace — company registration or no match
+            const domainToSet = explicitDomain?.toLowerCase() || emailDomain || null;
+            const [newWs] = await db.insert(workspaces).values({
+                name: companyName || `${fullName}'s Workspace`,
+                companyName,
+                domain: domainToSet,
+            }).returning();
+            workspace = newWs;
+            userRole = 'owner';
+        }
 
         // Create user profile
         const initials = fullName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
@@ -40,7 +58,7 @@ router.post('/register', async (req: Request, res: Response) => {
             id: authData.user.id,
             email,
             fullName,
-            role: 'admin',
+            role: userRole,
             workspaceId: workspace.id,
             avatarInitials: initials,
         });
@@ -56,7 +74,7 @@ router.post('/register', async (req: Request, res: Response) => {
         }
 
         res.json({
-            user: { id: authData.user.id, email, fullName, role: 'admin', workspaceId: workspace.id, avatarInitials: initials },
+            user: { id: authData.user.id, email, fullName, role: userRole, workspaceId: workspace.id, avatarInitials: initials },
             session: signInData.session,
         });
     } catch (error: any) {
@@ -119,13 +137,15 @@ router.get('/me', async (req: Request, res: Response) => {
 
         let workspaceName = '';
         let companyName = '';
+        let domain = '';
         if (userProfile.workspaceId) {
             const [ws] = await db.select().from(workspaces).where(eq(workspaces.id, userProfile.workspaceId));
             workspaceName = ws?.name || '';
             companyName = ws?.companyName || ws?.name || '';
+            domain = ws?.domain || '';
         }
 
-        res.json({ ...userProfile, workspaceName, companyName });
+        res.json({ ...userProfile, workspaceName, companyName, domain });
     } catch (error: any) {
         res.status(500).json({ error: error.message });
     }
@@ -150,11 +170,12 @@ router.put('/profile', requireAuth, async (req: AuthRequest, res: Response) => {
 router.put('/workspace', requireAuth, async (req: AuthRequest, res: Response) => {
     try {
         const { companyName } = req.body;
-        const [user] = await db.select().from(users).where(eq(users.id, req.userId!));
-        if (!user.workspaceId) return res.status(400).json({ error: 'No workspace found' });
+        const [userRow] = await db.select().from(users).where(eq(users.id, req.userId!));
+        if (!userRow.workspaceId) return res.status(400).json({ error: 'No workspace found' });
+        if (userRow.role !== 'admin' && userRow.role !== 'owner') return res.status(403).json({ error: 'Company access required' });
         const [updated] = await db.update(workspaces)
             .set({ name: companyName, companyName })
-            .where(eq(workspaces.id, user.workspaceId!))
+            .where(eq(workspaces.id, userRow.workspaceId!))
             .returning();
         res.json(updated);
     } catch (error: any) {

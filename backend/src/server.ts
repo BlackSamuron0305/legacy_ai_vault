@@ -10,6 +10,7 @@ import analyticsRoutes from './routes/analytics.routes';
 import activityRoutes from './routes/activity.routes';
 import chatRoutes from './routes/chat.routes';
 import settingsRoutes from './routes/settings.routes';
+import adminRoutes from './routes/admin.routes';
 import { log, logDebug } from './utils/logger';
 
 dotenv.config();
@@ -18,12 +19,20 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Middleware
+const allowedOrigins = [
+    process.env.FRONTEND_URL,
+    process.env.FRONTEND_URL_CUSTOM,
+    'http://localhost:8080',
+    'http://localhost:5173',
+].filter(Boolean) as string[];
+
 app.use(cors({
-    origin: [
-        process.env.FRONTEND_URL || 'http://localhost:5173',
-        'http://localhost:8080',
-        'http://localhost:5173',
-    ],
+    origin: (origin, callback) => {
+        // Allow requests with no origin (mobile apps, curl, etc.)
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.includes(origin)) return callback(null, true);
+        callback(new Error(`CORS: origin ${origin} not allowed`));
+    },
     credentials: true
 }));
 app.use(express.json({ limit: '10mb' }));
@@ -65,6 +74,7 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/api/activity', activityRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Health Check
 app.get('/api/health', (_req, res) => {

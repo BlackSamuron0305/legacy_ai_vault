@@ -1,7 +1,7 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import {
-  LayoutDashboard, Mic, BookOpen, FileText, Upload, Users, BarChart3, Settings, ChevronLeft, LogOut
+  LayoutDashboard, Mic, BookOpen, FileText, Upload, Users, BarChart3, Settings, ChevronLeft, LogOut, Shield
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -23,7 +23,7 @@ interface AppSidebarProps {
 export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
 
   const handleLogout = async () => {
     await logout();
@@ -71,6 +71,26 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
       </nav>
 
       <div className="py-2 px-2 border-t border-border space-y-px">
+        {(user?.role === 'admin' || user?.role === 'owner') && (
+          <Link
+            to="/app/admin"
+            className={cn(
+              "flex items-center gap-2.5 px-3 py-2 text-[13px] font-medium transition-colors",
+              location.pathname.startsWith('/app/admin')
+                ? "text-foreground bg-foreground/[0.06]"
+                : "text-muted-foreground hover:text-foreground hover:bg-foreground/[0.04]",
+              collapsed && "justify-center px-2"
+            )}
+          >
+            <Shield className="w-4 h-4 shrink-0" />
+            {!collapsed && (
+              <span className="flex items-center gap-1.5">
+                Company
+                <span className="text-[9px] font-semibold uppercase tracking-wider border border-foreground/20 text-foreground/60 px-1 py-px leading-none">Company</span>
+              </span>
+            )}
+          </Link>
+        )}
         <Link
           to="/app/settings"
           className={cn(

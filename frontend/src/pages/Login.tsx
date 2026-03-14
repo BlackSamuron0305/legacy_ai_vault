@@ -152,6 +152,9 @@ export default function Login() {
           <p className="text-[13px] text-center text-muted-foreground mt-6 animate-auth-fade-up auth-delay-5">
             Don't have an account? <Link to="/register" className="text-foreground hover:underline font-semibold">Create one</Link>
           </p>
+          <p className="text-[13px] text-center text-muted-foreground mt-2 animate-auth-fade-up auth-delay-5">
+            Setting up for your company? <Link to="/register/company" className="text-foreground hover:underline font-semibold">Register Company</Link>
+          </p>
         </div>
       </div>
     </div>
