@@ -27,6 +27,14 @@ import Employees from "./pages/Employees";
 import EmployeeDetail from "./pages/EmployeeDetail";
 import Analytics from "./pages/Analytics";
 import DemoMode from "./pages/DemoMode";
+import UseCaseDetail from "./pages/UseCaseDetail";
+import Features from "./pages/Features";
+import Pricing from "./pages/Pricing";
+import SecurityPage from "./pages/SecurityPage";
+import About from "./pages/About";
+import Blog from "./pages/Blog";
+import Privacy from "./pages/Privacy";
+import Terms from "./pages/Terms";
 import Settings, {
   SettingsProfile, SettingsAccount, SettingsWorkspace, SettingsTeam,
   SettingsAI, SettingsTranscript, SettingsOutput, SettingsNotifications,
@@ -53,6 +61,14 @@ const AppRoutes = () => (
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/onboarding" element={<Onboarding />} />
       <Route path="/demo" element={<DemoMode />} />
+      <Route path="/use-cases/:slug" element={<UseCaseDetail />} />
+      <Route path="/features" element={<Features />} />
+      <Route path="/pricing" element={<Pricing />} />
+      <Route path="/security" element={<SecurityPage />} />
+      <Route path="/about" element={<About />} />
+      <Route path="/blog" element={<Blog />} />
+      <Route path="/privacy" element={<Privacy />} />
+      <Route path="/terms" element={<Terms />} />
 
       {/* App (Protected) */}
       <Route path="/app" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
