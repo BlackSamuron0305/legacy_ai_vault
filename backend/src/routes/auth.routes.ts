@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { db } from '../db/drizzle';
 import { users, workspaces } from '../db/schema';
 import { eq } from 'drizzle-orm';
+import { requireAuth, AuthRequest } from '../middleware/auth';
 
 const router = Router();
 
@@ -98,7 +99,7 @@ router.post('/logout', async (req: Request, res: Response) => {
     }
 });
 
-// GET /api/auth/me — get current user profile
+// GET /api/auth/me — get current user profile with workspace
 router.get('/me', async (req: Request, res: Response) => {
     try {
         const authHeader = req.headers.authorization;
@@ -116,7 +117,46 @@ router.get('/me', async (req: Request, res: Response) => {
             return res.status(404).json({ error: 'User profile not found' });
         }
 
-        res.json(userProfile);
+        let workspaceName = '';
+        let companyName = '';
+        if (userProfile.workspaceId) {
+            const [ws] = await db.select().from(workspaces).where(eq(workspaces.id, userProfile.workspaceId));
+            workspaceName = ws?.name || '';
+            companyName = ws?.companyName || ws?.name || '';
+        }
+
+        res.json({ ...userProfile, workspaceName, companyName });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// PUT /api/auth/profile — update profile (fullName, avatarInitials)
+router.put('/profile', requireAuth, async (req: AuthRequest, res: Response) => {
+    try {
+        const { fullName } = req.body;
+        const initials = fullName?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
+        const [updated] = await db.update(users)
+            .set({ fullName, avatarInitials: initials })
+            .where(eq(users.id, req.userId!))
+            .returning();
+        res.json(updated);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// PUT /api/auth/workspace — update workspace name
+router.put('/workspace', requireAuth, async (req: AuthRequest, res: Response) => {
+    try {
+        const { companyName } = req.body;
+        const [user] = await db.select().from(users).where(eq(users.id, req.userId!));
+        if (!user.workspaceId) return res.status(400).json({ error: 'No workspace found' });
+        const [updated] = await db.update(workspaces)
+            .set({ name: companyName, companyName })
+            .where(eq(workspaces.id, user.workspaceId!))
+            .returning();
+        res.json(updated);
     } catch (error: any) {
         res.status(500).json({ error: error.message });
     }

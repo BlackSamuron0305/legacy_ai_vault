@@ -1,5 +1,8 @@
 import { Link, useLocation, Outlet } from "react-router-dom";
 import { User, Shield, Building2, Users, Brain, FileCheck, FileText, Bell, Puzzle, Palette } from "lucide-react";
+import { useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { api } from "@/lib/api";
 
 const settingsNav = [
   { title: 'Profile', url: '/app/settings', icon: User },
@@ -36,29 +39,56 @@ export default function Settings() {
 }
 
 export function SettingsProfile() {
+  const { user, refreshUser } = useAuth();
+  const [fullName, setFullName] = useState(user?.fullName || '');
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await api.updateProfile(fullName);
+      await refreshUser();
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="bg-card rounded-2xl border border-border shadow-card p-6 space-y-4">
       <h2 className="font-semibold">Profile</h2>
       <div className="flex items-center gap-4 mb-4">
-        <div className="w-16 h-16 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xl font-semibold">AR</div>
-        <button className="text-sm text-primary hover:underline">Change avatar</button>
+        <div className="w-16 h-16 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xl font-semibold">{user?.avatarInitials || '?'}</div>
       </div>
-      {[{l:'Full name',v:'Alex Rivera'},{l:'Job title',v:'HR Operations Manager'},{l:'Department',v:'HR Operations'},{l:'Timezone',v:'America/New_York'}].map(f=>(
-        <div key={f.l}><label className="text-sm font-medium">{f.l}</label><input defaultValue={f.v} className="mt-1 w-full h-10 px-3 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"/></div>
-      ))}
-      <button className="h-10 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-medium">Save Changes</button>
+      <div>
+        <label className="text-sm font-medium">Full name</label>
+        <input value={fullName} onChange={e => setFullName(e.target.value)} className="mt-1 w-full h-10 px-3 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"/>
+      </div>
+      <div>
+        <label className="text-sm font-medium">Email</label>
+        <input defaultValue={user?.email || ''} disabled className="mt-1 w-full h-10 px-3 rounded-lg border border-input bg-muted text-sm text-muted-foreground cursor-not-allowed"/>
+      </div>
+      <div>
+        <label className="text-sm font-medium">Role</label>
+        <input defaultValue={user?.role || ''} disabled className="mt-1 w-full h-10 px-3 rounded-lg border border-input bg-muted text-sm text-muted-foreground cursor-not-allowed capitalize"/>
+      </div>
+      <button onClick={handleSave} disabled={saving} className="h-10 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-60">
+        {saving ? 'Saving...' : saved ? 'Saved!' : 'Save Changes'}
+      </button>
     </div>
   );
 }
 
 export function SettingsAccount() {
+  const { user } = useAuth();
   return (
     <div className="space-y-4">
       <div className="bg-card rounded-2xl border border-border shadow-card p-6 space-y-4">
         <h2 className="font-semibold">Account</h2>
-        <div><label className="text-sm font-medium">Email</label><input defaultValue="alex@company.com" className="mt-1 w-full h-10 px-3 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"/></div>
-        <div><label className="text-sm font-medium">Password</label><input type="password" defaultValue="••••••••" className="mt-1 w-full h-10 px-3 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"/></div>
-        <button className="h-10 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-medium">Update</button>
+        <div><label className="text-sm font-medium">Email</label><input defaultValue={user?.email || ''} disabled className="mt-1 w-full h-10 px-3 rounded-lg border border-input bg-muted text-sm text-muted-foreground cursor-not-allowed"/></div>
+        <div><label className="text-sm font-medium">Password</label><input type="password" defaultValue="••••••••" disabled className="mt-1 w-full h-10 px-3 rounded-lg border border-input bg-muted text-sm text-muted-foreground cursor-not-allowed"/><p className="text-xs text-muted-foreground mt-1">Password is managed via Supabase Auth.</p></div>
       </div>
       <div className="bg-card rounded-2xl border border-destructive/30 shadow-card p-6">
         <h3 className="font-semibold text-destructive">Danger Zone</h3>
@@ -70,18 +100,33 @@ export function SettingsAccount() {
 }
 
 export function SettingsWorkspace() {
+  const { user, refreshUser } = useAuth();
+  const [companyName, setCompanyName] = useState(user?.companyName || user?.workspaceName || '');
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await api.updateWorkspace(companyName);
+      await refreshUser();
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="bg-card rounded-2xl border border-border shadow-card p-6 space-y-4">
       <h2 className="font-semibold">Workspace</h2>
-      {[{l:'Company name',v:'Acme Corp'},{l:'Workspace URL',v:'acme-corp.legacyai.com'}].map(f=>(
-        <div key={f.l}><label className="text-sm font-medium">{f.l}</label><input defaultValue={f.v} className="mt-1 w-full h-10 px-3 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"/></div>
-      ))}
-      <div><label className="text-sm font-medium">Departments</label>
-        <div className="mt-2 flex flex-wrap gap-2">{['Engineering','Operations','Customer Success','Product','Finance','Data'].map(d=>(
-          <span key={d} className="px-3 py-1 rounded-full bg-muted text-sm">{d}</span>
-        ))}</div>
+      <div>
+        <label className="text-sm font-medium">Company name</label>
+        <input value={companyName} onChange={e => setCompanyName(e.target.value)} className="mt-1 w-full h-10 px-3 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"/>
       </div>
-      <button className="h-10 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-medium">Save</button>
+      <button onClick={handleSave} disabled={saving} className="h-10 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-60">
+        {saving ? 'Saving...' : saved ? 'Saved!' : 'Save'}
+      </button>
     </div>
   );
 }

@@ -8,6 +8,8 @@ interface User {
     role: string;
     workspaceId: string;
     avatarInitials: string;
+    workspaceName: string;
+    companyName: string;
 }
 
 interface AuthContextType {
@@ -16,6 +18,7 @@ interface AuthContextType {
     login: (email: string, password: string) => Promise<void>;
     register: (email: string, password: string, fullName: string, companyName: string) => Promise<void>;
     logout: () => Promise<void>;
+    refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -46,13 +49,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(data.user);
     };
 
+    const refreshUser = async () => {
+        const data = await api.getMe();
+        setUser(data);
+    };
+
     const logout = async () => {
         await api.logout();
         setUser(null);
     };
 
     return (
-        <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+        <AuthContext.Provider value={{ user, loading, login, register, logout, refreshUser }}>
             {children}
         </AuthContext.Provider>
     );

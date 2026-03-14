@@ -1,17 +1,19 @@
 import { Bell, Search, Plus, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 
 export function TopNav() {
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   return (
     <header className="h-14 border-b border-border bg-background flex items-center justify-between px-6 shrink-0">
       <div className="flex items-center gap-3">
-        <button className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-accent transition-colors text-sm">
-          <span className="font-medium text-foreground">Acme Corp</span>
+        <Link to="/app/settings/workspace" className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-accent transition-colors text-sm">
+          <span className="font-medium text-foreground">{user?.companyName || user?.workspaceName || 'My Workspace'}</span>
           <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
-        </button>
+        </Link>
       </div>
 
       <div className="flex-1 max-w-md mx-8">
@@ -35,9 +37,9 @@ export function TopNav() {
           <Bell className="w-4 h-4" />
           <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-destructive" />
         </Button>
-        <button className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-semibold">
-          AR
-        </button>
+        <Link to="/app/settings" className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-semibold hover:opacity-80 transition-opacity">
+          {user?.avatarInitials || '?'}
+        </Link>
       </div>
     </header>
   );

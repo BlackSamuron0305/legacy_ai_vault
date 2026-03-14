@@ -77,6 +77,20 @@ class ApiClient {
         return this.request<any>('/auth/me');
     }
 
+    async updateProfile(fullName: string) {
+        return this.request<any>('/auth/profile', {
+            method: 'PUT',
+            body: JSON.stringify({ fullName }),
+        });
+    }
+
+    async updateWorkspace(companyName: string) {
+        return this.request<any>('/auth/workspace', {
+            method: 'PUT',
+            body: JSON.stringify({ companyName }),
+        });
+    }
+
     // Employees
     async getEmployees() {
         return this.request<any[]>('/employees');
