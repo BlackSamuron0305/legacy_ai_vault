@@ -36,7 +36,6 @@ function NetworkPattern() {
 export default function Register() {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
-  const [companyName, setCompanyName] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
@@ -57,7 +56,7 @@ export default function Register() {
     }
     setLoading(true);
     try {
-      await register(email, password, fullName, companyName);
+      await register(email, password, fullName);
       navigate('/app');
     } catch (err: any) {
       setError(err.message || 'Registration failed');
@@ -139,12 +138,9 @@ export default function Register() {
             <div className="animate-auth-fade-up auth-delay-2">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Work email</label>
               <input type="email" placeholder="you@company.com" value={email} onChange={e => setEmail(e.target.value)} required className="mt-1 w-full h-11 px-3.5 border border-border bg-white text-[13px] focus:outline-none focus:ring-1 focus:ring-foreground/20 transition-all" />
+              <p className="text-[11px] text-muted-foreground mt-1.5">If your company is already registered, you'll be added automatically</p>
             </div>
-            <div className="animate-auth-fade-up auth-delay-3">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Company name</label>
-              <input type="text" placeholder="Acme Corp" value={companyName} onChange={e => setCompanyName(e.target.value)} required className="mt-1 w-full h-11 px-3.5 border border-border bg-white text-[13px] focus:outline-none focus:ring-1 focus:ring-foreground/20 transition-all" />
-            </div>
-            <div className="grid grid-cols-2 gap-2.5 animate-auth-fade-up auth-delay-4">
+            <div className="grid grid-cols-2 gap-2.5 animate-auth-fade-up auth-delay-3">
               <div>
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Password</label>
                 <input type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required className="mt-1 w-full h-11 px-3.5 border border-border bg-white text-[13px] focus:outline-none focus:ring-1 focus:ring-foreground/20 transition-all" />
@@ -154,7 +150,7 @@ export default function Register() {
                 <input type="password" placeholder="••••••••" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required className="mt-1 w-full h-11 px-3.5 border border-border bg-white text-[13px] focus:outline-none focus:ring-1 focus:ring-foreground/20 transition-all" />
               </div>
             </div>
-            <div className="animate-auth-fade-up auth-delay-5 pt-0.5">
+            <div className="animate-auth-fade-up auth-delay-4 pt-0.5">
               <Button className="w-full h-11 text-[13px] font-semibold bg-foreground text-background hover:bg-foreground/85 border-0 transition-all" type="submit" disabled={loading}>
                 {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> Creating account...</> : 'Create Account'}
               </Button>

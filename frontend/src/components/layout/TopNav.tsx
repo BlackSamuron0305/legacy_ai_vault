@@ -1,11 +1,27 @@
+import { useEffect } from "react";
 import { Bell, Search, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 
-export function TopNav() {
+interface TopNavProps {
+  onSearchOpen: () => void;
+}
+
+export function TopNav({ onSearchOpen }: TopNavProps) {
   const navigate = useNavigate();
   const { user } = useAuth();
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        onSearchOpen();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onSearchOpen]);
 
   return (
     <header className="h-14 border-b border-border bg-white flex items-center justify-between px-6 shrink-0">
@@ -23,15 +39,14 @@ export function TopNav() {
       </div>
 
       <div className="flex-1 max-w-md mx-8">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-          <input
-            type="text"
-            placeholder="Search sessions, employees, knowledge..."
-            className="w-full h-8 pl-9 pr-4 border border-border bg-white text-[13px] placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-foreground/20 focus:border-foreground/20"
-          />
-          <kbd className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground border border-border px-1.5 py-0.5">⌘K</kbd>
-        </div>
+        <button
+          onClick={onSearchOpen}
+          className="relative w-full flex items-center h-8 border border-border bg-white text-[13px] text-muted-foreground/60 hover:border-foreground/30 hover:text-muted-foreground transition-colors px-3 gap-2"
+        >
+          <Search className="w-3.5 h-3.5 shrink-0" />
+          <span className="flex-1 text-left">Search sessions, employees, knowledge...</span>
+          <kbd className="text-[10px] border border-border px-1.5 py-0.5 shrink-0">⌘K</kbd>
+        </button>
       </div>
 
       <div className="flex items-center gap-2">

@@ -18,6 +18,29 @@ function requireAdmin(req: AuthRequest, res: Response, next: () => void) {
     next();
 }
 
+// ===== TEAM (any authenticated user with workspace) =====
+
+// GET /api/admin/team — list workspace team members (read-only, any role)
+router.get('/team', requireAuth, async (req: AuthRequest, res: Response) => {
+    try {
+        const ctx = await getUserContext(req.userId!);
+        if (!ctx.workspaceId) return res.status(400).json({ error: 'No workspace found' });
+
+        const members = await db.select({
+            id: users.id,
+            email: users.email,
+            fullName: users.fullName,
+            role: users.role,
+            avatarInitials: users.avatarInitials,
+            createdAt: users.createdAt,
+        }).from(users).where(eq(users.workspaceId, ctx.workspaceId));
+
+        res.json(members);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // ===== MEMBERS =====
 
 // GET /api/admin/members — list workspace members

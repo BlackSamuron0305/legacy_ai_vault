@@ -59,7 +59,7 @@ class ApiClient {
         return data;
     }
 
-    async register(email: string, password: string, fullName: string, companyName: string, domain?: string) {
+    async register(email: string, password: string, fullName: string, companyName?: string, domain?: string) {
         const data = await this.request<any>('/auth/register', {
             method: 'POST',
             body: JSON.stringify({ email, password, fullName, companyName, domain }),
@@ -267,6 +267,11 @@ class ApiClient {
             method: 'PUT',
             body: JSON.stringify(data),
         });
+    }
+
+    // Team — any authenticated user
+    async getTeam() {
+        return this.request<any[]>('/admin/team');
     }
 
     // Admin — Members

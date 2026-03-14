@@ -1,5 +1,5 @@
 import { Link, useLocation, Outlet } from "react-router-dom";
-import { User, Shield, Building2, Users, Brain, FileCheck, FileText, Bell, Puzzle, Palette, ChevronRight } from "lucide-react";
+import { User, Shield, Brain, FileCheck, FileText, Bell, Puzzle, Palette, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useSettings } from "@/hooks/useSettings";
@@ -9,8 +9,6 @@ import { api } from "@/lib/api";
 const settingsNav = [
   { title: 'Profile', slug: 'profile', desc: 'Name, avatar & personal info', icon: User },
   { title: 'Account', slug: 'account', desc: 'Email, password & danger zone', icon: Shield },
-  { title: 'Workspace', slug: 'workspace', desc: 'Company name & workspace settings', icon: Building2 },
-  { title: 'Team', slug: 'team', desc: 'Members, roles & invitations', icon: Users },
   { title: 'AI & Interview', slug: 'ai', desc: 'Tone, depth & probing behaviour', icon: Brain },
   { title: 'Transcript Review', slug: 'transcript', desc: 'Approval workflow & editing', icon: FileCheck },
   { title: 'Output', slug: 'output', desc: 'Report format, export & chunking', icon: FileText },

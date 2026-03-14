@@ -29,6 +29,7 @@ import EmployeeDetail from "./pages/EmployeeDetail";
 import Analytics from "./pages/Analytics";
 import DemoMode from "./pages/DemoMode";
 import Admin from "./pages/Admin";
+import Team from "./pages/Team";
 import UseCaseDetail from "./pages/UseCaseDetail";
 import Features from "./pages/Features";
 import Pricing from "./pages/Pricing";
@@ -38,7 +39,7 @@ import Blog from "./pages/Blog";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
 import Settings, {
-  SettingsIndex, SettingsProfile, SettingsAccount, SettingsWorkspace, SettingsTeam,
+  SettingsIndex, SettingsProfile, SettingsAccount,
   SettingsAI, SettingsTranscript, SettingsOutput, SettingsNotifications,
   SettingsIntegrations, SettingsAppearance
 } from "./pages/Settings";
@@ -92,13 +93,12 @@ const AppRoutes = () => (
         <Route path="employees/:id" element={<EmployeeDetail />} />
         <Route path="analytics" element={<Analytics />} />
         <Route path="admin" element={<Admin />} />
+        <Route path="team" element={<Team />} />
 
         <Route path="settings" element={<Settings />}>
           <Route index element={<SettingsIndex />} />
           <Route path="profile" element={<SettingsProfile />} />
           <Route path="account" element={<SettingsAccount />} />
-          <Route path="workspace" element={<SettingsWorkspace />} />
-          <Route path="team" element={<SettingsTeam />} />
           <Route path="ai" element={<SettingsAI />} />
           <Route path="transcript" element={<SettingsTranscript />} />
           <Route path="output" element={<SettingsOutput />} />
