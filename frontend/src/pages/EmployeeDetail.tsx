@@ -2,14 +2,15 @@ import { Link, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { useEmployee } from "@/hooks/useApi";
-import { ArrowLeft, Mic, AlertCircle, Loader2 } from "lucide-react";
+import { ArrowLeft, Mic, AlertCircle } from "lucide-react";
+import { EmployeeDetailSkeleton } from "@/components/skeletons";
 
 export default function EmployeeDetail() {
   const { id } = useParams();
   const { data: emp, isLoading } = useEmployee(id!);
 
   if (isLoading || !emp) {
-    return <div className="flex items-center justify-center h-64"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
+    return <EmployeeDetailSkeleton />;
   }
 
   const empSessions = emp.sessions || [];

@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/common/StatusBadge";
-import { Upload, FileText, BookOpen, Database, ExternalLink, Package, Loader2 } from "lucide-react";
+import { Upload, FileText, BookOpen, Database, ExternalLink, Package } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useReports } from "@/hooks/useApi";
 import { useKnowledgeCards } from "@/hooks/useApi";
 
@@ -47,7 +48,7 @@ export default function Exports() {
           <span className="text-xs text-muted-foreground">{exportPacks.length} reports · {cards.length} knowledge blocks total</span>
         </div>
         {isLoading ? (
-          <div className="flex items-center justify-center h-32"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
+          <div className="divide-y divide-border">{[1,2,3].map(i => <div key={i} className="px-5 py-4 flex items-center justify-between"><div className="flex items-center gap-3"><Skeleton className="w-8 h-8" /><div className="space-y-1.5"><Skeleton className="h-3 w-40" /><Skeleton className="h-2.5 w-24" /></div></div><Skeleton className="h-7 w-20" /></div>)}</div>
         ) : exportPacks.length === 0 ? (
           <div className="p-8 text-center text-[13px] text-muted-foreground">No reports yet. Complete a session to generate export packages.</div>
         ) : (

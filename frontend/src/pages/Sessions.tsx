@@ -3,7 +3,8 @@ import { Link } from "react-router-dom";
 import { useSessions } from "@/hooks/useApi";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { Button } from "@/components/ui/button";
-import { Plus, Search, Filter, Loader2 } from "lucide-react";
+import { Plus, Search, Filter } from "lucide-react";
+import { SessionsSkeleton } from "@/components/skeletons";
 
 const filters = ['All', 'Scheduled', 'In Progress', 'Awaiting Review', 'Awaiting Approval', 'Processing', 'Finalized'];
 
@@ -12,7 +13,7 @@ export default function Sessions() {
   const { data: sessions = [], isLoading } = useSessions();
 
   if (isLoading) {
-    return <div className="flex items-center justify-center h-64"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
+    return <SessionsSkeleton />;
   }
 
   const filtered = activeFilter === 'All' ? sessions : sessions.filter((s: any) => {

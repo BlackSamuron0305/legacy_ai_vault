@@ -3,7 +3,8 @@ import { Link, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/common/StatusBadge";
-import { ArrowLeft, FileText, Users, Server, Link2, MessageSquare, X, Send, Brain, Loader2 } from "lucide-react";
+import { ArrowLeft, FileText, Users, Server, Link2, MessageSquare, X, Send, Brain } from "lucide-react";
+import { CategoryDetailSkeleton } from "@/components/skeletons";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCategoryDetail, useCategoryChat } from "@/hooks/useApi";
 
@@ -167,7 +168,7 @@ export default function CategoryDetail() {
   const cardCount = cards.length;
 
   if (isLoading) {
-    return <div className="flex items-center justify-center h-64"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
+    return <CategoryDetailSkeleton />;
   }
 
   return (

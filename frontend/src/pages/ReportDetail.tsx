@@ -2,7 +2,8 @@ import { Link, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/common/StatusBadge";
-import { ArrowLeft, Download, CheckCircle2, BookOpen, Users, Server, Loader2 } from "lucide-react";
+import { ArrowLeft, Download, CheckCircle2, BookOpen, Users, Server } from "lucide-react";
+import { ReportDetailSkeleton } from "@/components/skeletons";
 import { useReport } from "@/hooks/useApi";
 
 export default function ReportDetail() {
@@ -10,7 +11,7 @@ export default function ReportDetail() {
   const { data: report, isLoading } = useReport(id || '');
 
   if (isLoading) {
-    return <div className="flex items-center justify-center h-64"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
+    return <ReportDetailSkeleton />;
   }
 
   if (!report) {

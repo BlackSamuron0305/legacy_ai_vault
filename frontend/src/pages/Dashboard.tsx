@@ -2,7 +2,8 @@ import { Link } from "react-router-dom";
 import { StatCard } from "@/components/common/StatCard";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { useSessions, useEmployees, useActivityFeed } from "@/hooks/useApi";
-import { Mic, FileCheck, BookOpen, Upload, AlertTriangle, Users, Clock, ArrowRight, Loader2 } from "lucide-react";
+import { Mic, FileCheck, BookOpen, Upload, AlertTriangle, Users, Clock, ArrowRight } from "lucide-react";
+import { DashboardSkeleton } from "@/components/skeletons";
 import { Button } from "@/components/ui/button";
 
 export default function Dashboard() {
@@ -15,7 +16,7 @@ export default function Dashboard() {
   const completedSessions = sessions.filter((s: any) => s.status === 'finalized').length;
 
   if (sessionsLoading || employeesLoading) {
-    return <div className="flex items-center justify-center h-64"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
+    return <DashboardSkeleton />;
   }
 
   return (

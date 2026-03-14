@@ -1,6 +1,7 @@
 import { StatCard } from "@/components/common/StatCard";
 import { useAnalyticsCoverage, useAnalyticsGaps, useAnalyticsSummary } from "@/hooks/useApi";
-import { BarChart3, Users, FileCheck, AlertTriangle, BookOpen, Upload, Loader2 } from "lucide-react";
+import { BarChart3, Users, FileCheck, AlertTriangle, BookOpen, Upload } from "lucide-react";
+import { AnalyticsSkeleton } from "@/components/skeletons";
 
 export default function Analytics() {
   const { data: coverage = [], isLoading: coverageLoading } = useAnalyticsCoverage();
@@ -8,7 +9,7 @@ export default function Analytics() {
   const { data: summary } = useAnalyticsSummary();
 
   if (coverageLoading) {
-    return <div className="flex items-center justify-center h-64"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
+    return <AnalyticsSkeleton />;
   }
 
   return (

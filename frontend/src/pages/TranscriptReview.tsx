@@ -2,7 +2,8 @@ import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, CheckCircle2, Edit3, Flag, RotateCcw, Save, Shield, Loader2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Edit3, Flag, Loader2, RotateCcw, Save, Shield } from "lucide-react";
+import { TranscriptReviewSkeleton } from "@/components/skeletons";
 import { useApproveTranscript, useSession, useSessionTopics } from "@/hooks/useApi";
 
 type ParsedSegment = {
@@ -62,14 +63,7 @@ export default function TranscriptReview() {
   };
 
   if (isLoading || !session) {
-    return (
-      <div className="min-h-[calc(100vh-3.5rem)] flex items-center justify-center p-6">
-        <div className="text-sm text-muted-foreground flex items-center gap-2">
-          <Loader2 className="w-4 h-4 animate-spin" />
-          Loading transcript review...
-        </div>
-      </div>
-    );
+    return <TranscriptReviewSkeleton />;
   }
 
   if (showConfirm) {

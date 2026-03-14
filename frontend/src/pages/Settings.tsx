@@ -1,39 +1,75 @@
 import { Link, useLocation, Outlet } from "react-router-dom";
-import { User, Shield, Building2, Users, Brain, FileCheck, FileText, Bell, Puzzle, Palette } from "lucide-react";
+import { User, Shield, Building2, Users, Brain, FileCheck, FileText, Bell, Puzzle, Palette, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useSettings } from "@/hooks/useSettings";
+import { SettingsFormSkeleton, SettingsToggleSkeleton } from "@/components/skeletons";
 import { api } from "@/lib/api";
 
 const settingsNav = [
-  { title: 'Profile', url: '/app/settings', icon: User },
-  { title: 'Account', url: '/app/settings/account', icon: Shield },
-  { title: 'Workspace', url: '/app/settings/workspace', icon: Building2 },
-  { title: 'Team', url: '/app/settings/team', icon: Users },
-  { title: 'AI & Interview', url: '/app/settings/ai', icon: Brain },
-  { title: 'Transcript Review', url: '/app/settings/transcript', icon: FileCheck },
-  { title: 'Output', url: '/app/settings/output', icon: FileText },
-  { title: 'Notifications', url: '/app/settings/notifications', icon: Bell },
-  { title: 'Integrations', url: '/app/settings/integrations', icon: Puzzle },
-  { title: 'Appearance', url: '/app/settings/appearance', icon: Palette },
+  { title: 'Profile', slug: 'profile', desc: 'Name, avatar & personal info', icon: User },
+  { title: 'Account', slug: 'account', desc: 'Email, password & danger zone', icon: Shield },
+  { title: 'Workspace', slug: 'workspace', desc: 'Company name & workspace settings', icon: Building2 },
+  { title: 'Team', slug: 'team', desc: 'Members, roles & invitations', icon: Users },
+  { title: 'AI & Interview', slug: 'ai', desc: 'Tone, depth & probing behaviour', icon: Brain },
+  { title: 'Transcript Review', slug: 'transcript', desc: 'Approval workflow & editing', icon: FileCheck },
+  { title: 'Output', slug: 'output', desc: 'Report format, export & chunking', icon: FileText },
+  { title: 'Notifications', slug: 'notifications', desc: 'Alerts, digests & in-app notices', icon: Bell },
+  { title: 'Integrations', slug: 'integrations', desc: 'Notion, Slack, Jira & more', icon: Puzzle },
+  { title: 'Appearance', slug: 'appearance', desc: 'Theme, density & locale', icon: Palette },
 ];
+
+/* Breadcrumb label from pathname */
+function getSectionTitle(pathname: string) {
+  const slug = pathname.replace('/app/settings/', '').replace('/app/settings', '');
+  return settingsNav.find(n => n.slug === slug)?.title || null;
+}
 
 export default function Settings() {
   const location = useLocation();
+  const section = getSectionTitle(location.pathname);
+  const isIndex = location.pathname === '/app/settings' || location.pathname === '/app/settings/';
+
   return (
-    <div className="p-8 max-w-6xl mx-auto">
-      <h1 className="text-xl font-semibold tracking-tight mb-6">Settings</h1>
-      <div className="flex gap-8">
-        <nav className="w-48 shrink-0 space-y-px">
-          {settingsNav.map(n => (
-            <Link key={n.url} to={n.url} className={`flex items-center gap-2 px-3 py-2 text-[13px] font-medium transition-colors ${
-              location.pathname === n.url ? 'text-foreground bg-foreground/[0.06]' : 'text-muted-foreground hover:text-foreground hover:bg-foreground/[0.04]'
-            }`}><n.icon className="w-3.5 h-3.5"/>{n.title}</Link>
-          ))}
-        </nav>
-        <div className="flex-1 min-w-0">
-          <Outlet />
-        </div>
-      </div>
+    <div className="p-8 max-w-3xl mx-auto">
+      {/* Breadcrumb */}
+      <nav className="flex items-center gap-1.5 text-[13px] mb-6">
+        {isIndex ? (
+          <h1 className="text-xl font-semibold tracking-tight">Settings</h1>
+        ) : (
+          <>
+            <Link to="/app/settings" className="text-muted-foreground hover:text-foreground transition-colors">Settings</Link>
+            <ChevronRight className="w-3 h-3 text-muted-foreground/50" />
+            <span className="font-medium text-foreground">{section}</span>
+          </>
+        )}
+      </nav>
+
+      <Outlet />
+    </div>
+  );
+}
+
+/* Index page — settings overview grid */
+export function SettingsIndex() {
+  return (
+    <div className="grid grid-cols-2 gap-px bg-border border border-border">
+      {settingsNav.map(n => (
+        <Link
+          key={n.slug}
+          to={`/app/settings/${n.slug}`}
+          className="bg-white p-5 flex items-start gap-4 hover:bg-foreground/[0.02] transition-colors group"
+        >
+          <div className="w-9 h-9 bg-foreground/[0.06] flex items-center justify-center shrink-0">
+            <n.icon className="w-4 h-4 text-foreground" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-[13px] font-semibold group-hover:underline">{n.title}</div>
+            <div className="text-xs text-muted-foreground mt-0.5">{n.desc}</div>
+          </div>
+          <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/40 mt-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+        </Link>
+      ))}
     </div>
   );
 }
@@ -155,57 +191,143 @@ export function SettingsTeam() {
 }
 
 export function SettingsAI() {
+  const { settings, loading, saving, saved, update } = useSettings();
+  const [local, setLocal] = useState<Record<string, string>>({});
+
+  const fields = [
+    { key: 'interviewTone' as const, l: 'Interview tone', opts: ['Professional', 'Conversational', 'Neutral'] },
+    { key: 'followUpDepth' as const, l: 'Follow-up depth', opts: ['Light (3-5 follow-ups)', 'Standard (5-10 follow-ups)', 'Thorough (10-15 follow-ups)'] },
+    { key: 'knowledgeProbing' as const, l: 'Knowledge probing', opts: ['Gentle', 'Moderate', 'Aggressive'] },
+    { key: 'outputStructure' as const, l: 'Output structure', opts: ['Structured categories', 'Freeform', 'Topic-based'] },
+  ];
+
+  const getValue = (key: string) => local[key] ?? (settings as any)[key] ?? '';
+
+  const handleSave = () => {
+    if (Object.keys(local).length > 0) update(local);
+  };
+
+  if (loading) return <SettingsFormSkeleton />;
+
   return (
     <div className="bg-white border border-border p-6 space-y-4">
       <h2 className="font-semibold text-[13px] uppercase tracking-wide text-muted-foreground">AI & Interview Settings</h2>
       <p className="text-[13px] text-muted-foreground">Configure how the AI conducts knowledge capture interviews.</p>
-      {[{l:'Interview tone',opts:['Professional','Conversational','Neutral']},{l:'Follow-up depth',opts:['Light (3-5 follow-ups)','Standard (5-10 follow-ups)','Thorough (10-15 follow-ups)']},{l:'Knowledge probing',opts:['Gentle','Moderate','Aggressive']},{l:'Output structure',opts:['Structured categories','Freeform','Topic-based']}].map(s=>(
-        <div key={s.l}><label className="text-[13px] font-medium">{s.l}</label><select className="mt-1 w-full h-9 px-3 border border-border bg-white text-[13px] focus:outline-none focus:ring-1 focus:ring-foreground/20">{s.opts.map(o=><option key={o}>{o}</option>)}</select></div>
+      {fields.map(s => (
+        <div key={s.key}>
+          <label className="text-[13px] font-medium">{s.l}</label>
+          <select value={getValue(s.key)} onChange={e => setLocal(prev => ({ ...prev, [s.key]: e.target.value }))} className="mt-1 w-full h-9 px-3 border border-border bg-white text-[13px] focus:outline-none focus:ring-1 focus:ring-foreground/20">
+            {s.opts.map(o => <option key={o}>{o}</option>)}
+          </select>
+        </div>
       ))}
       <div><label className="text-[13px] font-medium">Session templates</label><p className="text-xs text-muted-foreground mt-1">4 templates configured (Engineering, Operations, CS, Executive)</p></div>
-      <button className="h-9 px-4 bg-foreground text-background text-[13px] font-medium hover:bg-foreground/90 transition-colors">Save Settings</button>
+      <button onClick={handleSave} disabled={saving} className="h-9 px-4 bg-foreground text-background text-[13px] font-medium disabled:opacity-60 hover:bg-foreground/90 transition-colors">
+        {saving ? 'Saving...' : saved ? 'Saved!' : 'Save Settings'}
+      </button>
     </div>
   );
 }
 
 export function SettingsTranscript() {
+  const { settings, loading, saving, saved, update } = useSettings();
+
+  const toggles = [
+    { key: 'requireApproval' as const, l: 'Require human approval before processing' },
+    { key: 'allowEditing' as const, l: 'Allow transcript editing' },
+    { key: 'highlightLowConfidence' as const, l: 'Highlight low-confidence segments' },
+    { key: 'notifyReviewer' as const, l: 'Notify reviewer when transcript is ready' },
+    { key: 'allowReRecord' as const, l: 'Allow re-record requests' },
+  ];
+
+  if (loading) return <SettingsToggleSkeleton />;
+
   return (
     <div className="bg-white border border-border p-6 space-y-4">
       <h2 className="font-semibold text-[13px] uppercase tracking-wide text-muted-foreground">Transcript Review Settings</h2>
       <p className="text-[13px] text-muted-foreground">Configure the transcript review and approval workflow.</p>
-      {[{l:'Require human approval before processing',v:true},{l:'Allow transcript editing',v:true},{l:'Highlight low-confidence segments',v:true},{l:'Notify reviewer when transcript is ready',v:true},{l:'Allow re-record requests',v:true}].map(s=>(
-        <div key={s.l} className="flex items-center justify-between py-2">
-          <span className="text-[13px]">{s.l}</span>
-          <div className={`w-9 h-5 ${s.v ? 'bg-foreground' : 'bg-border'} relative cursor-pointer`}><div className={`absolute top-0.5 w-4 h-4 bg-white transition-all ${s.v ? 'right-0.5' : 'left-0.5'}`}/></div>
-        </div>
-      ))}
-      <button className="h-9 px-4 bg-foreground text-background text-[13px] font-medium hover:bg-foreground/90 transition-colors">Save Settings</button>
+      {toggles.map(s => {
+        const v = (settings as any)[s.key] as boolean;
+        return (
+          <div key={s.key} className="flex items-center justify-between py-2">
+            <span className="text-[13px]">{s.l}</span>
+            <button type="button" onClick={() => update({ [s.key]: !v })} disabled={saving} className={`w-9 h-5 ${v ? 'bg-foreground' : 'bg-border'} relative cursor-pointer`}>
+              <div className={`absolute top-0.5 w-4 h-4 bg-white transition-all ${v ? 'right-0.5' : 'left-0.5'}`}/>
+            </button>
+          </div>
+        );
+      })}
+      {saved && <p className="text-[13px] text-emerald-600">Saved!</p>}
     </div>
   );
 }
 
 export function SettingsOutput() {
+  const { settings, loading, saving, saved, update } = useSettings();
+  const [local, setLocal] = useState<Record<string, string>>({});
+
+  const fields = [
+    { key: 'reportFormat' as const, l: 'Report format', opts: ['Structured Documentation', 'Markdown', 'PDF'] },
+    { key: 'knowledgeCategorization' as const, l: 'Knowledge categorization', opts: ['Automatic (AI-suggested)', 'Custom categories'] },
+    { key: 'exportFormat' as const, l: 'Export format', opts: ['Markdown', 'JSON', 'PDF', 'DOCX'] },
+    { key: 'ragChunking' as const, l: 'RAG chunking', opts: ['Paragraph-level', 'Section-level', 'Block-level'] },
+  ];
+
+  const getValue = (key: string) => local[key] ?? (settings as any)[key] ?? '';
+
+  const handleSave = () => {
+    if (Object.keys(local).length > 0) update(local);
+  };
+
+  if (loading) return <SettingsFormSkeleton />;
+
   return (
     <div className="bg-white border border-border p-6 space-y-4">
       <h2 className="font-semibold text-[13px] uppercase tracking-wide text-muted-foreground">Output Settings</h2>
-      {[{l:'Report format',opts:['Structured Documentation','Markdown','PDF']},{l:'Knowledge categorization',opts:['Automatic (AI-suggested)','Custom categories']},{l:'Export format',opts:['Markdown','JSON','PDF','DOCX']},{l:'RAG chunking',opts:['Paragraph-level','Section-level','Block-level']}].map(s=>(
-        <div key={s.l}><label className="text-[13px] font-medium">{s.l}</label><select className="mt-1 w-full h-9 px-3 border border-border bg-white text-[13px] focus:outline-none focus:ring-1 focus:ring-foreground/20">{s.opts.map(o=><option key={o}>{o}</option>)}</select></div>
+      {fields.map(s => (
+        <div key={s.key}>
+          <label className="text-[13px] font-medium">{s.l}</label>
+          <select value={getValue(s.key)} onChange={e => setLocal(prev => ({ ...prev, [s.key]: e.target.value }))} className="mt-1 w-full h-9 px-3 border border-border bg-white text-[13px] focus:outline-none focus:ring-1 focus:ring-foreground/20">
+            {s.opts.map(o => <option key={o}>{o}</option>)}
+          </select>
+        </div>
       ))}
-      <button className="h-9 px-4 bg-foreground text-background text-[13px] font-medium hover:bg-foreground/90 transition-colors">Save Settings</button>
+      <button onClick={handleSave} disabled={saving} className="h-9 px-4 bg-foreground text-background text-[13px] font-medium disabled:opacity-60 hover:bg-foreground/90 transition-colors">
+        {saving ? 'Saving...' : saved ? 'Saved!' : 'Save Settings'}
+      </button>
     </div>
   );
 }
 
 export function SettingsNotifications() {
+  const { settings, loading, saving, saved, update } = useSettings();
+
+  const toggles = [
+    { key: 'notifySessionReminders' as const, l: 'Session reminders' },
+    { key: 'notifyTranscriptReady' as const, l: 'Transcript ready for review' },
+    { key: 'notifyReportFinalized' as const, l: 'Report finalized' },
+    { key: 'notifyKnowledgeGaps' as const, l: 'Knowledge gap alerts' },
+    { key: 'notifyWeeklyDigest' as const, l: 'Weekly digest email' },
+    { key: 'notifyInApp' as const, l: 'In-app notifications' },
+  ];
+
+  if (loading) return <SettingsToggleSkeleton />;
+
   return (
     <div className="bg-white border border-border p-6 space-y-4">
       <h2 className="font-semibold text-[13px] uppercase tracking-wide text-muted-foreground">Notifications</h2>
-      {['Session reminders','Transcript ready for review','Report finalized','Knowledge gap alerts','Weekly digest email','In-app notifications'].map(s=>(
-        <div key={s} className="flex items-center justify-between py-2">
-          <span className="text-[13px]">{s}</span>
-          <div className="w-9 h-5 bg-foreground relative cursor-pointer"><div className="absolute top-0.5 right-0.5 w-4 h-4 bg-white"/></div>
-        </div>
-      ))}
+      {toggles.map(s => {
+        const v = (settings as any)[s.key] as boolean;
+        return (
+          <div key={s.key} className="flex items-center justify-between py-2">
+            <span className="text-[13px]">{s.l}</span>
+            <button type="button" onClick={() => update({ [s.key]: !v })} disabled={saving} className={`w-9 h-5 ${v ? 'bg-foreground' : 'bg-border'} relative cursor-pointer`}>
+              <div className={`absolute top-0.5 w-4 h-4 bg-white transition-all ${v ? 'right-0.5' : 'left-0.5'}`}/>
+            </button>
+          </div>
+        );
+      })}
+      {saved && <p className="text-[13px] text-emerald-600">Saved!</p>}
     </div>
   );
 }
@@ -228,12 +350,38 @@ export function SettingsIntegrations() {
 }
 
 export function SettingsAppearance() {
+  const { settings, loading, saving, saved, update } = useSettings();
+  const [local, setLocal] = useState<Record<string, string>>({});
+
+  const fields = [
+    { key: 'theme' as const, l: 'Theme', opts: ['Light', 'Dark', 'System'] },
+    { key: 'density' as const, l: 'Density', opts: ['Comfortable', 'Compact'] },
+    { key: 'dateFormat' as const, l: 'Date format', opts: ['MM/DD/YYYY', 'DD/MM/YYYY', 'YYYY-MM-DD'] },
+    { key: 'language' as const, l: 'Language', opts: ['English', 'Spanish', 'French', 'German'] },
+  ];
+
+  const getValue = (key: string) => local[key] ?? (settings as any)[key] ?? '';
+
+  const handleSave = () => {
+    if (Object.keys(local).length > 0) update(local);
+  };
+
+  if (loading) return <SettingsFormSkeleton />;
+
   return (
     <div className="bg-white border border-border p-6 space-y-4">
       <h2 className="font-semibold text-[13px] uppercase tracking-wide text-muted-foreground">Appearance</h2>
-      {[{l:'Theme',opts:['Light','Dark','System']},{l:'Density',opts:['Comfortable','Compact']},{l:'Date format',opts:['MM/DD/YYYY','DD/MM/YYYY','YYYY-MM-DD']},{l:'Language',opts:['English','Spanish','French','German']}].map(s=>(
-        <div key={s.l}><label className="text-[13px] font-medium">{s.l}</label><select className="mt-1 w-full h-9 px-3 border border-border bg-white text-[13px] focus:outline-none focus:ring-1 focus:ring-foreground/20">{s.opts.map(o=><option key={o}>{o}</option>)}</select></div>
+      {fields.map(s => (
+        <div key={s.key}>
+          <label className="text-[13px] font-medium">{s.l}</label>
+          <select value={getValue(s.key)} onChange={e => setLocal(prev => ({ ...prev, [s.key]: e.target.value }))} className="mt-1 w-full h-9 px-3 border border-border bg-white text-[13px] focus:outline-none focus:ring-1 focus:ring-foreground/20">
+            {s.opts.map(o => <option key={o}>{o}</option>)}
+          </select>
+        </div>
       ))}
+      <button onClick={handleSave} disabled={saving} className="h-9 px-4 bg-foreground text-background text-[13px] font-medium disabled:opacity-60 hover:bg-foreground/90 transition-colors">
+        {saving ? 'Saving...' : saved ? 'Saved!' : 'Save Settings'}
+      </button>
     </div>
   );
 }

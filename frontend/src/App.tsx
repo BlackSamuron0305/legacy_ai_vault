@@ -36,7 +36,7 @@ import Blog from "./pages/Blog";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
 import Settings, {
-  SettingsProfile, SettingsAccount, SettingsWorkspace, SettingsTeam,
+  SettingsIndex, SettingsProfile, SettingsAccount, SettingsWorkspace, SettingsTeam,
   SettingsAI, SettingsTranscript, SettingsOutput, SettingsNotifications,
   SettingsIntegrations, SettingsAppearance
 } from "./pages/Settings";
@@ -90,7 +90,8 @@ const AppRoutes = () => (
         <Route path="analytics" element={<Analytics />} />
 
         <Route path="settings" element={<Settings />}>
-          <Route index element={<SettingsProfile />} />
+          <Route index element={<SettingsIndex />} />
+          <Route path="profile" element={<SettingsProfile />} />
           <Route path="account" element={<SettingsAccount />} />
           <Route path="workspace" element={<SettingsWorkspace />} />
           <Route path="team" element={<SettingsTeam />} />

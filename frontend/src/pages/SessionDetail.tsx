@@ -3,7 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { useSession, useSessionTranscript, useSessionTopics } from "@/hooks/useApi";
-import { ArrowLeft, Clock, FileText, BookOpen, MessageSquare, AlertCircle, CheckCircle2, ExternalLink, Loader2 } from "lucide-react";
+import { ArrowLeft, Clock, FileText, BookOpen, MessageSquare, AlertCircle, CheckCircle2, ExternalLink } from "lucide-react";
+import { SessionDetailSkeleton } from "@/components/skeletons";
 
 export default function SessionDetail() {
   const { id } = useParams();
@@ -12,7 +13,7 @@ export default function SessionDetail() {
   const { data: extractedTopics = [] } = useSessionTopics(id!);
 
   if (isLoading || !session) {
-    return <div className="flex items-center justify-center h-64"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
+    return <SessionDetailSkeleton />;
   }
 
   return (

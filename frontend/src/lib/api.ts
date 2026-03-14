@@ -91,6 +91,18 @@ class ApiClient {
         });
     }
 
+    // Workspace Settings
+    async getSettings() {
+        return this.request<any>('/settings');
+    }
+
+    async updateSettings(settings: Record<string, any>) {
+        return this.request<any>('/settings', {
+            method: 'PUT',
+            body: JSON.stringify(settings),
+        });
+    }
+
     // Employees
     async getEmployees() {
         return this.request<any[]>('/employees');

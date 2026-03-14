@@ -4,6 +4,7 @@ import { useEmployees, useCreateEmployee } from "@/hooks/useApi";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Plus, Loader2, X } from "lucide-react";
+import { EmployeesSkeleton } from "@/components/skeletons";
 
 function AddEmployeeDialog({ onClose }: { onClose: () => void }) {
   const createEmployee = useCreateEmployee();
@@ -77,7 +78,7 @@ export default function Employees() {
   const [showAdd, setShowAdd] = useState(false);
 
   if (isLoading) {
-    return <div className="flex items-center justify-center h-64"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>;
+    return <EmployeesSkeleton />;
   }
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-6">

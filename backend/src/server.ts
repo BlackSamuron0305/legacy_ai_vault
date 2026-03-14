@@ -9,6 +9,7 @@ import reportRoutes from './routes/report.routes';
 import analyticsRoutes from './routes/analytics.routes';
 import activityRoutes from './routes/activity.routes';
 import chatRoutes from './routes/chat.routes';
+import settingsRoutes from './routes/settings.routes';
 import { log, logDebug } from './utils/logger';
 
 dotenv.config();
@@ -63,6 +64,7 @@ app.use('/api/reports', reportRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/activity', activityRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/settings', settingsRoutes);
 
 // Health Check
 app.get('/api/health', (_req, res) => {

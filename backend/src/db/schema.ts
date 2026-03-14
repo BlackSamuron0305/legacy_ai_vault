@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, integer, timestamp, customType, real, boolean } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, integer, timestamp, customType, real, boolean, jsonb } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
 // Custom type for pgvector
@@ -166,3 +166,42 @@ export const activities = pgTable('activities', {
     message: text('message').notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 });
+
+// ===== WORKSPACE SETTINGS =====
+export const workspaceSettings = pgTable('workspace_settings', {
+    id: uuid('id').defaultRandom().primaryKey(),
+    workspaceId: uuid('workspace_id').references(() => workspaces.id, { onDelete: 'cascade' }).notNull().unique(),
+    // AI & Interview
+    interviewTone: text('interview_tone').default('Professional'),
+    followUpDepth: text('follow_up_depth').default('Standard (5-10 follow-ups)'),
+    knowledgeProbing: text('knowledge_probing').default('Moderate'),
+    outputStructure: text('output_structure').default('Structured categories'),
+    // Transcript Review
+    requireApproval: boolean('require_approval').default(true),
+    allowEditing: boolean('allow_editing').default(true),
+    highlightLowConfidence: boolean('highlight_low_confidence').default(true),
+    notifyReviewer: boolean('notify_reviewer').default(true),
+    allowReRecord: boolean('allow_re_record').default(true),
+    // Output
+    reportFormat: text('report_format').default('Structured Documentation'),
+    knowledgeCategorization: text('knowledge_categorization').default('Automatic (AI-suggested)'),
+    exportFormat: text('export_format').default('Markdown'),
+    ragChunking: text('rag_chunking').default('Paragraph-level'),
+    // Notifications
+    notifySessionReminders: boolean('notify_session_reminders').default(true),
+    notifyTranscriptReady: boolean('notify_transcript_ready').default(true),
+    notifyReportFinalized: boolean('notify_report_finalized').default(true),
+    notifyKnowledgeGaps: boolean('notify_knowledge_gaps').default(true),
+    notifyWeeklyDigest: boolean('notify_weekly_digest').default(true),
+    notifyInApp: boolean('notify_in_app').default(true),
+    // Appearance
+    theme: text('theme').default('Light'),
+    density: text('density').default('Comfortable'),
+    dateFormat: text('date_format').default('DD/MM/YYYY'),
+    language: text('language').default('English'),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+});
+
+export const workspaceSettingsRelations = relations(workspaceSettings, ({ one }) => ({
+    workspace: one(workspaces, { fields: [workspaceSettings.workspaceId], references: [workspaces.id] }),
+}));
