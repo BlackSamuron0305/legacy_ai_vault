@@ -1,7 +1,6 @@
-import { useEffect } from "react";
-import { Bell, Search, Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { useNavigate, Link } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { Bell, Search, LogOut, Settings } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 
 interface TopNavProps {
@@ -9,8 +8,25 @@ interface TopNavProps {
 }
 
 export function TopNav({ onSearchOpen }: TopNavProps) {
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
+  };
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -50,22 +66,37 @@ export function TopNav({ onSearchOpen }: TopNavProps) {
       </div>
 
       <div className="flex items-center gap-2">
-        <Button
-          variant="default"
-          size="sm"
-          onClick={() => navigate('/app/sessions/new')}
-          className="h-8 text-[13px] rounded-none bg-foreground text-background hover:bg-foreground/90"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          New Session
-        </Button>
         <button className="relative w-8 h-8 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
           <Bell className="w-4 h-4" />
           <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-foreground" />
         </button>
-        <Link to="/app/settings" className="w-7 h-7 bg-foreground text-background flex items-center justify-center text-xs font-semibold hover:opacity-80 transition-opacity">
-          {user?.avatarInitials || '?'}
-        </Link>
+        <div className="relative" ref={dropdownRef}>
+          <button
+            onClick={() => setDropdownOpen(o => !o)}
+            className="w-7 h-7 bg-foreground text-background flex items-center justify-center text-xs font-semibold hover:opacity-80 transition-opacity"
+          >
+            {user?.avatarInitials || '?'}
+          </button>
+          {dropdownOpen && (
+            <div className="absolute right-0 top-9 w-44 bg-white border border-border shadow-md z-50">
+              <Link
+                to="/app/settings"
+                onClick={() => setDropdownOpen(false)}
+                className="flex items-center gap-2.5 px-4 py-2.5 text-[13px] text-foreground hover:bg-foreground/[0.04] transition-colors"
+              >
+                <Settings className="w-3.5 h-3.5" />
+                Settings
+              </Link>
+              <button
+                onClick={handleLogout}
+                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-[13px] text-destructive hover:bg-destructive/[0.06] transition-colors"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                Logout
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </header>
   );

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { api } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Users, Crown, UserCheck, FileCheck, Eye, Shield } from "lucide-react";
+import { Users, Crown, UserCheck, FileCheck, Eye, Shield, Trash2 } from "lucide-react";
 
 interface Member {
   id: string;
@@ -33,6 +33,7 @@ export default function Team() {
   const { user } = useAuth();
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
+  const canManage = user?.role === 'owner' || user?.role === 'admin';
 
   useEffect(() => {
     api.getTeam()
@@ -40,6 +41,16 @@ export default function Team() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
+
+  const handleRoleChange = async (memberId: string, newRole: string) => {
+    await api.updateMemberRole(memberId, newRole);
+    setMembers(prev => prev.map(m => m.id === memberId ? { ...m, role: newRole } : m));
+  };
+
+  const handleRemoveMember = async (memberId: string) => {
+    await api.removeMember(memberId);
+    setMembers(prev => prev.filter(m => m.id !== memberId));
+  };
 
   if (loading) {
     return (
@@ -83,9 +94,28 @@ export default function Team() {
                     <div className="text-[11px] text-muted-foreground">{m.email}</div>
                   </div>
                 </div>
-                <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                  <RoleIcon className="w-3 h-3" />
-                  <span className="capitalize">{ROLE_LABELS[m.role] || m.role}</span>
+                <div className="flex items-center gap-2">
+                  {canManage && m.id !== user?.id && m.role !== 'owner' && m.role !== 'admin' ? (
+                    <>
+                      <select
+                        value={m.role}
+                        onChange={e => handleRoleChange(m.id, e.target.value)}
+                        className="h-7 px-2 border border-border bg-white text-[11px] focus:outline-none focus:ring-1 focus:ring-foreground/20"
+                      >
+                        <option value="member">Member</option>
+                        <option value="reviewer">Reviewer</option>
+                        <option value="viewer">Viewer</option>
+                      </select>
+                      <button onClick={() => handleRemoveMember(m.id)} className="w-7 h-7 flex items-center justify-center text-muted-foreground hover:text-red-500 transition-colors">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </>
+                  ) : (
+                    <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                      <RoleIcon className="w-3 h-3" />
+                      <span className="capitalize">{ROLE_LABELS[m.role] || m.role}</span>
+                    </div>
+                  )}
                 </div>
               </div>
             );

@@ -215,6 +215,42 @@ router.delete('/api-keys/:id', requireAuth, async (req: AuthRequest, res: Respon
 
 // ===== COMPANY INFO =====
 
+// GET /api/admin/companies — list ALL companies (platform admin only)
+router.get('/companies', requireAuth, async (req: AuthRequest, res: Response) => {
+    try {
+        const ctx = await getUserContext(req.userId!);
+        if (ctx.role !== 'admin') return res.status(403).json({ error: 'Admin access required' });
+
+        const allWorkspaces = await db.select().from(workspaces);
+        const allUsers = await db.select({
+            id: users.id,
+            fullName: users.fullName,
+            email: users.email,
+            role: users.role,
+            workspaceId: users.workspaceId,
+        }).from(users);
+
+        const result = allWorkspaces.map(ws => {
+            const wsMembers = allUsers.filter(u => u.workspaceId === ws.id);
+            const owner = wsMembers.find(u => u.role === 'owner');
+            return {
+                id: ws.id,
+                name: ws.name,
+                companyName: ws.companyName || ws.name,
+                domain: ws.domain,
+                industry: ws.industry,
+                memberCount: wsMembers.length,
+                owner: owner ? { id: owner.id, fullName: owner.fullName, email: owner.email } : null,
+                createdAt: ws.createdAt,
+            };
+        });
+
+        res.json(result);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // GET /api/admin/company — get company/workspace info
 router.get('/company', requireAuth, async (req: AuthRequest, res: Response) => {
     try {

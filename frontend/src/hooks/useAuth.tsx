@@ -6,7 +6,7 @@ interface User {
     email: string;
     fullName: string;
     role: string;
-    workspaceId: string;
+    workspaceId: string | null;
     avatarInitials: string;
     workspaceName: string;
     companyName: string;
@@ -18,6 +18,7 @@ interface AuthContextType {
     loading: boolean;
     login: (email: string, password: string) => Promise<void>;
     register: (email: string, password: string, fullName: string, companyName?: string, domain?: string) => Promise<void>;
+    joinCompany: () => Promise<void>;
     logout: () => Promise<void>;
     refreshUser: () => Promise<void>;
 }
@@ -52,6 +53,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(userData);
     };
 
+    const joinCompany = async () => {
+        const userData = await api.joinCompany();
+        setUser(userData);
+    };
+
     const refreshUser = async () => {
         const data = await api.getMe();
         setUser(data);
@@ -63,7 +69,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     return (
-        <AuthContext.Provider value={{ user, loading, login, register, logout, refreshUser }}>
+        <AuthContext.Provider value={{ user, loading, login, register, joinCompany, logout, refreshUser }}>
             {children}
         </AuthContext.Provider>
     );

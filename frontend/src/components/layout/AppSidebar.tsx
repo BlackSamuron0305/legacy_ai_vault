@@ -1,7 +1,7 @@
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import {
-  LayoutDashboard, Mic, BookOpen, FileText, Upload, Users, BarChart3, Settings, ChevronLeft, LogOut, Shield, Building2
+  LayoutDashboard, Mic, BookOpen, FileText, Upload, Users, BarChart3, Settings, ChevronLeft, Shield, Building2
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -22,13 +22,7 @@ interface AppSidebarProps {
 
 export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
   const location = useLocation();
-  const navigate = useNavigate();
-  const { logout, user } = useAuth();
-
-  const handleLogout = async () => {
-    await logout();
-    navigate('/login');
-  };
+  const { user } = useAuth();
 
   return (
     <aside className={cn(
@@ -108,8 +102,8 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
             {!collapsed && <span>Company</span>}
           </Link>
         )}
-        {/* Team: visible to owner and member */}
-        {(user?.role === 'owner' || user?.role === 'member') && (
+        {/* Team: visible to everyone with a workspace */}
+        {user?.workspaceId && (
           <Link
             to="/app/team"
             className={cn(
@@ -135,16 +129,6 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
           <Settings className="w-4 h-4 shrink-0" />
           {!collapsed && <span>Settings</span>}
         </Link>
-        <button
-          onClick={handleLogout}
-          className={cn(
-            "w-full flex items-center gap-2.5 px-3 py-2 text-[13px] font-medium text-muted-foreground hover:text-destructive transition-colors",
-            collapsed && "justify-center px-2"
-          )}
-        >
-          <LogOut className="w-4 h-4 shrink-0" />
-          {!collapsed && <span>Logout</span>}
-        </button>
         <button
           onClick={onToggle}
           className={cn("w-full flex items-center gap-2.5 px-3 py-1.5 text-muted-foreground hover:text-foreground transition-colors", collapsed ? "justify-center px-2" : "")}

@@ -30,27 +30,27 @@ router.post('/register', async (req: Request, res: Response) => {
         }
 
         // Check if a workspace with this email domain already exists
-        let workspace;
-        let userRole = 'member';
+        let workspace = null;
+        let userRole = 'viewer';
         const [existingWs] = emailDomain
             ? await db.select().from(workspaces).where(eq(workspaces.domain, emailDomain))
             : [];
 
         if (existingWs && !explicitDomain) {
-            // Join existing company (employee flow)
+            // Join existing company (employee flow — domain matches)
             workspace = existingWs;
             userRole = 'member';
-        } else {
-            // Create new workspace — company registration or no match
-            const domainToSet = explicitDomain?.toLowerCase() || emailDomain || null;
+        } else if (explicitDomain) {
+            // Company registration — create new workspace, user becomes owner
             const [newWs] = await db.insert(workspaces).values({
                 name: companyName || `${fullName}'s Workspace`,
                 companyName,
-                domain: domainToSet,
+                domain: explicitDomain.toLowerCase(),
             }).returning();
             workspace = newWs;
             userRole = 'owner';
         }
+        // else: no domain match & no explicit domain → user has no workspace (can join later)
 
         // Create user profile
         const initials = fullName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
@@ -59,7 +59,7 @@ router.post('/register', async (req: Request, res: Response) => {
             email,
             fullName,
             role: userRole,
-            workspaceId: workspace.id,
+            workspaceId: workspace?.id || null,
             avatarInitials: initials,
         });
 
@@ -74,7 +74,7 @@ router.post('/register', async (req: Request, res: Response) => {
         }
 
         res.json({
-            user: { id: authData.user.id, email, fullName, role: userRole, workspaceId: workspace.id, avatarInitials: initials },
+            user: { id: authData.user.id, email, fullName, role: userRole, workspaceId: workspace?.id || null, avatarInitials: initials },
             session: signInData.session,
         });
     } catch (error: any) {
@@ -161,6 +161,35 @@ router.put('/profile', requireAuth, async (req: AuthRequest, res: Response) => {
             .where(eq(users.id, req.userId!))
             .returning();
         res.json(updated);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// POST /api/auth/join-company — join a company by email domain
+router.post('/join-company', requireAuth, async (req: AuthRequest, res: Response) => {
+    try {
+        const [userRow] = await db.select().from(users).where(eq(users.id, req.userId!));
+        if (userRow.workspaceId) {
+            return res.status(400).json({ error: 'You are already in a workspace' });
+        }
+
+        const emailDomain = userRow.email.split('@')[1]?.toLowerCase();
+        if (!emailDomain) {
+            return res.status(400).json({ error: 'Could not determine email domain' });
+        }
+
+        const [ws] = await db.select().from(workspaces).where(eq(workspaces.domain, emailDomain));
+        if (!ws) {
+            return res.status(404).json({ error: `No company found for @${emailDomain}. Ask your company admin to register the company first.` });
+        }
+
+        const [updated] = await db.update(users)
+            .set({ workspaceId: ws.id, role: 'member' })
+            .where(eq(users.id, req.userId!))
+            .returning();
+
+        res.json({ ...updated, workspaceName: ws.name, companyName: ws.companyName || ws.name, domain: ws.domain });
     } catch (error: any) {
         res.status(500).json({ error: error.message });
     }

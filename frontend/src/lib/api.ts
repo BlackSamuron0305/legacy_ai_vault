@@ -68,6 +68,10 @@ class ApiClient {
         return data;
     }
 
+    async joinCompany() {
+        return this.request<any>('/auth/join-company', { method: 'POST' });
+    }
+
     async logout() {
         await this.request('/auth/logout', { method: 'POST' }).catch(() => {});
         this.setToken(null);
@@ -260,6 +264,10 @@ class ApiClient {
     // Admin — Company
     async getCompany() {
         return this.request<any>('/admin/company');
+    }
+
+    async getAllCompanies() {
+        return this.request<any[]>('/admin/companies');
     }
 
     async updateCompany(data: { companyName?: string; domain?: string; industry?: string }) {
