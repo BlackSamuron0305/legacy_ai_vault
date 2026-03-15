@@ -28,6 +28,7 @@ import Employees from "./pages/Employees";
 import EmployeeDetail from "./pages/EmployeeDetail";
 import Analytics from "./pages/Analytics";
 import DemoMode from "./pages/DemoMode";
+import DemoSession from "./pages/DemoSession";
 import Admin from "./pages/Admin";
 import Team from "./pages/Team";
 import UseCaseDetail from "./pages/UseCaseDetail";
@@ -65,6 +66,7 @@ const AppRoutes = () => (
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/onboarding" element={<Onboarding />} />
       <Route path="/demo" element={<DemoMode />} />
+      <Route path="/demo/session" element={<DemoSession />} />
       <Route path="/use-cases/:slug" element={<UseCaseDetail />} />
       <Route path="/features" element={<Features />} />
       <Route path="/pricing" element={<Pricing />} />
