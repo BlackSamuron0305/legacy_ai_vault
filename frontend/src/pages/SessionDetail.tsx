@@ -25,7 +25,7 @@ export default function SessionDetail() {
             <h1 className="text-xl font-semibold">{session.employeeName || 'Session'} — Knowledge Capture</h1>
             <StatusBadge status={session.status} />
           </div>
-          <p className="text-[13px] text-muted-foreground">{session.employeeName} · {session.employeeRole} · {session.department}</p>
+          <p className="text-[13px] text-muted-foreground">{[session.employeeName, session.employeeRole, session.department].filter(Boolean).join(' · ')}</p>
         </div>
         <Link to={`/app/sessions/${id}/interview`} className="h-8 px-4 bg-foreground text-background text-[13px] font-medium flex items-center gap-1.5 hover:bg-foreground/90 transition-colors"><MessageSquare className="w-3.5 h-3.5" /> Start Session</Link>
         <Link to={`/app/sessions/${id}/review`} className="h-8 px-4 border border-border text-[13px] font-medium flex items-center gap-1.5 hover:bg-foreground/[0.04] transition-colors"><FileText className="w-3.5 h-3.5" /> Review</Link>

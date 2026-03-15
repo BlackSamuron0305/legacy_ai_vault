@@ -143,63 +143,51 @@ router.post('/:id/start', async (req: AuthRequest, res: Response) => {
     }
 });
 
-// GET /api/sessions/:id/token — fetch signed ElevenLabs URL via AI service
+// GET /api/sessions/:id/token — fetch signed ElevenLabs URL directly
 router.get('/:id/token', async (req: AuthRequest, res: Response) => {
     try {
-        log('Fetching session token', {
-            sessionId: req.params.id,
-            userId: req.userId,
-        });
+        log('Fetching session token', { sessionId: req.params.id, userId: req.userId });
 
         const [session] = await db.select().from(sessions)
             .where(eq(sessions.id, req.params.id));
 
         if (!session) {
-            logWarn('Token fetch failed: session not found', { sessionId: req.params.id });
             return res.status(404).json({ error: 'Session not found' });
         }
 
-        const aiServiceUrl = process.env.AI_SERVICE_URL || 'http://localhost:5000';
-        const startedAt = Date.now();
-        const response = await fetch(`${aiServiceUrl}/api/start-session`, {
+        const apiKey = process.env.ELEVENLABS_API_KEY;
+        const agentId = process.env.ELEVENLABS_AGENT_ID;
+
+        if (!apiKey || !agentId) {
+            logError('Missing ElevenLabs config', { hasApiKey: !!apiKey, hasAgentId: !!agentId });
+            return res.status(500).json({ error: 'Missing ELEVENLABS_API_KEY or ELEVENLABS_AGENT_ID' });
+        }
+
+        const response = await fetch('https://api.elevenlabs.io/v1/convai/conversation/token', {
             method: 'POST',
             headers: {
+                'xi-api-key': apiKey,
                 'Content-Type': 'application/json',
             },
-        });
-
-        logDebug('AI service token request completed', {
-            sessionId: req.params.id,
-            status: response.status,
-            durationMs: Date.now() - startedAt,
+            body: JSON.stringify({ agent_id: agentId }),
         });
 
         if (!response.ok) {
             const errorText = await response.text();
-            logError('AI service token request failed', {
-                sessionId: req.params.id,
-                aiServiceUrl,
-                status: response.status,
-                errorText,
-            });
-            return res.status(502).json({ error: `AI service error: ${errorText || response.statusText}` });
+            logError('ElevenLabs token request failed', { status: response.status, errorText });
+            return res.status(502).json({ error: `ElevenLabs error: ${errorText || response.statusText}` });
         }
 
-        const data = await response.json() as { signed_url?: string; error?: string };
-        if (!data?.signed_url) {
-            logError('Token fetch failed: signed_url missing', {
-                sessionId: req.params.id,
-                responseData: data,
-            });
-            return res.status(502).json({ error: data?.error || 'Missing signed_url from AI service' });
+        const data = await response.json() as { token?: string; signed_url?: string };
+        const signedUrl = data.signed_url || data.token;
+
+        if (!signedUrl) {
+            logError('ElevenLabs returned no signed_url or token', { data });
+            return res.status(502).json({ error: 'No signed URL returned from ElevenLabs' });
         }
 
-        log('Session token fetched successfully', {
-            sessionId: req.params.id,
-            hasSignedUrl: Boolean(data?.signed_url),
-        });
-
-        res.json({ signed_url: data.signed_url });
+        log('Session token fetched successfully', { sessionId: req.params.id });
+        res.json({ signed_url: signedUrl });
     } catch (error: any) {
         logError('Token fetch route failed', { sessionId: req.params.id, error: error?.message || error });
         res.status(500).json({ error: error.message });

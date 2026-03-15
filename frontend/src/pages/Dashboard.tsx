@@ -74,7 +74,7 @@ export default function Dashboard() {
               <Link to={`/app/sessions/${s.id}`} key={s.id} className="flex items-center justify-between px-5 py-3.5 hover:bg-foreground/[0.02] transition-colors">
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 bg-foreground text-background text-xs font-semibold flex items-center justify-center">
-                    {s.employeeName.split(' ').map(n => n[0]).join('')}
+                    {(s.employeeName || '?').split(' ').map((n: string) => n[0]).join('')}
                   </div>
                   <div>
                     <p className="text-[13px] font-medium">{s.employeeName}</p>

@@ -74,7 +74,7 @@ export default function Sessions() {
                 <td className="px-5 py-3">
                   <Link to={`/app/sessions/${s.id}`} className="flex items-center gap-2">
                     <div className="w-7 h-7 bg-foreground text-background text-xs font-semibold flex items-center justify-center">
-                      {s.employeeName.split(' ').map(n => n[0]).join('')}
+                      {getInitials(s.employeeName)}
                     </div>
                     <div>
                       <p className="font-medium text-foreground">{s.employeeName || 'No employee selected'}</p>
