@@ -1,16 +1,133 @@
+import { useState, useRef, useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/common/StatusBadge";
-import { useSession, useSessionTranscript, useSessionTopics } from "@/hooks/useApi";
-import { ArrowLeft, Clock, FileText, BookOpen, MessageSquare, AlertCircle, CheckCircle2, ExternalLink } from "lucide-react";
+import { useSession, useSessionTranscript, useSessionTopics, useAskChat } from "@/hooks/useApi";
+import { ArrowLeft, Clock, FileText, BookOpen, MessageSquare, AlertCircle, CheckCircle2, ExternalLink, Brain, Send, X } from "lucide-react";
 import { SessionDetailSkeleton } from "@/components/skeletons";
+import { AnimatePresence, motion } from "framer-motion";
+
+type ChatMsg = { role: 'user' | 'assistant'; content: string };
+
+function SessionChat({ sessionId, onClose }: { sessionId: string; onClose: () => void }) {
+  const [messages, setMessages] = useState<ChatMsg[]>([
+    { role: 'assistant', content: 'I can answer questions about the knowledge captured in this session and across all sessions. What would you like to know?' },
+  ]);
+  const [input, setInput] = useState('');
+  const chatMutation = useAskChat();
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
+  }, [messages, chatMutation.isPending]);
+
+  useEffect(() => { inputRef.current?.focus(); }, []);
+
+  const handleSend = () => {
+    if (!input.trim() || chatMutation.isPending) return;
+    const q = input.trim();
+    setMessages(prev => [...prev, { role: 'user', content: q }]);
+    setInput('');
+    chatMutation.mutate(
+      { question: q, sessionId },
+      {
+        onSuccess: (data: any) => {
+          const answer = data.answer || 'No answer available.';
+          const sourceText = data.sources?.length
+            ? `\n\n_Sources: ${data.sources.map((s: any) => s.topic || s.expert_name).join(', ')}_`
+            : '';
+          setMessages(prev => [...prev, { role: 'assistant', content: answer + sourceText }]);
+        },
+        onError: () => {
+          setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, I could not process your question. Please try again.' }]);
+        },
+      },
+    );
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 20 }}
+      className="fixed inset-0 bg-white flex flex-col z-50 overflow-hidden"
+    >
+      <div className="px-5 py-3 border-b border-border flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 bg-foreground flex items-center justify-center">
+            <Brain className="w-3.5 h-3.5 text-background" />
+          </div>
+          <div>
+            <p className="text-[13px] font-semibold">Knowledge Chat</p>
+            <p className="text-xs text-muted-foreground">RAG-powered Q&A</p>
+          </div>
+        </div>
+        <button className="h-8 w-8 flex items-center justify-center hover:bg-foreground/[0.04]" onClick={onClose}>
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-4 max-w-3xl mx-auto w-full">
+        {messages.map((msg, i) => (
+          <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div className={`max-w-[70%] px-4 py-3 text-[13px] leading-relaxed whitespace-pre-line ${
+              msg.role === 'user' ? 'bg-foreground text-background' : 'bg-foreground/[0.06] text-foreground'
+            }`}>
+              {msg.content}
+            </div>
+          </div>
+        ))}
+        {chatMutation.isPending && (
+          <div className="flex justify-start">
+            <div className="bg-foreground/[0.06] px-4 py-3 flex items-center gap-1">
+              <div className="w-1.5 h-1.5 bg-muted-foreground/50 animate-bounce" style={{ animationDelay: '0ms' }} />
+              <div className="w-1.5 h-1.5 bg-muted-foreground/50 animate-bounce" style={{ animationDelay: '150ms' }} />
+              <div className="w-1.5 h-1.5 bg-muted-foreground/50 animate-bounce" style={{ animationDelay: '300ms' }} />
+            </div>
+          </div>
+        )}
+      </div>
+      {messages.length <= 1 && (
+        <div className="px-6 pb-2 flex flex-wrap gap-1.5 max-w-3xl mx-auto w-full">
+          {['Summarize the key findings', 'What are the biggest risks?', 'What knowledge was captured?'].map(q => (
+            <button key={q} onClick={() => setInput(q)} className="text-xs px-2.5 py-1.5 border border-border bg-foreground/[0.03] text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06] transition-colors">
+              {q}
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="p-4 border-t border-border shrink-0">
+        <div className="flex items-center gap-2 max-w-3xl mx-auto w-full">
+          <input
+            ref={inputRef}
+            type="text"
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleSend()}
+            placeholder="Ask about captured knowledge..."
+            className="flex-1 h-11 px-4 border border-border bg-white text-[13px] placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-foreground/20"
+            disabled={chatMutation.isPending}
+          />
+          <button
+            className="h-11 w-11 shrink-0 bg-foreground text-background flex items-center justify-center disabled:opacity-60 hover:bg-foreground/90 transition-colors"
+            onClick={handleSend}
+            disabled={!input.trim() || chatMutation.isPending}
+          >
+            <Send className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
 
 export default function SessionDetail() {
   const { id } = useParams();
   const { data: session, isLoading } = useSession(id!);
   const { data: transcriptSegments = [] } = useSessionTranscript(id!);
   const { data: extractedTopics = [] } = useSessionTopics(id!);
+  const [chatOpen, setChatOpen] = useState(false);
 
   if (isLoading || !session) {
     return <SessionDetailSkeleton />;
@@ -30,6 +147,17 @@ export default function SessionDetail() {
         <Link to={`/app/sessions/${id}/interview`} className="h-8 px-4 bg-foreground text-background text-[13px] font-medium flex items-center gap-1.5 hover:bg-foreground/90 transition-colors"><MessageSquare className="w-3.5 h-3.5" /> Start Session</Link>
         <Link to={`/app/sessions/${id}/review`} className="h-8 px-4 border border-border text-[13px] font-medium flex items-center gap-1.5 hover:bg-foreground/[0.04] transition-colors"><FileText className="w-3.5 h-3.5" /> Review</Link>
         <Link to={`/app/sessions/${id}/classification`} className="h-8 px-4 border border-border text-[13px] font-medium flex items-center gap-1.5 hover:bg-foreground/[0.04] transition-colors"><AlertCircle className="w-3.5 h-3.5" /> Classification</Link>
+        {Boolean(session?.summary) && (
+          <Link to={`/app/sessions/${id}/report`} className="h-8 px-4 border border-border text-[13px] font-medium flex items-center gap-1.5 hover:bg-foreground/[0.04] transition-colors">
+            <FileText className="w-3.5 h-3.5" /> View report
+          </Link>
+        )}
+        <button
+          onClick={() => setChatOpen(true)}
+          className="h-8 px-4 bg-foreground text-background text-[13px] font-medium flex items-center gap-1.5 hover:bg-foreground/90 transition-colors"
+        >
+          <Brain className="w-3.5 h-3.5" /> Chat
+        </button>
       </div>
 
       {session.status === 'processing_failed' && (
@@ -132,6 +260,10 @@ export default function SessionDetail() {
           </div>
         </div>
       </div>
+
+      <AnimatePresence>
+        {chatOpen && <SessionChat sessionId={id!} onClose={() => setChatOpen(false)} />}
+      </AnimatePresence>
     </div>
   );
 }

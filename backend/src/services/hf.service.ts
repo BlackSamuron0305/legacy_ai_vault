@@ -6,7 +6,7 @@ type ChatMessage = {
 };
 
 const HF_ROUTER_BASE_URL = 'https://router.huggingface.co/v1';
-const DEFAULT_CHAT_MODEL = 'Qwen/Qwen2.5-72B-Instruct';
+const DEFAULT_CHAT_MODEL = 'Qwen/Qwen2.5-72B-Instruct:novita';
 const DEFAULT_EMBEDDING_MODEL = 'sentence-transformers/all-MiniLM-L6-v2';
 const TARGET_EMBEDDING_DIM = 1536;
 

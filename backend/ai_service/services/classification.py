@@ -9,7 +9,7 @@ class ClassificationService:
         self.api_token = api_token
         # Using Hugging Face Inference API for classification
         self.chat_url = "https://router.huggingface.co/v1/chat/completions"
-        self.default_model = "Qwen/Qwen2.5-72B-Instruct"
+        self.default_model = "Qwen/Qwen2.5-72B-Instruct:novita"
         
     def classify_report(self, report_text, employee_context=""):
         """

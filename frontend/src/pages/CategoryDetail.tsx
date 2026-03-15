@@ -172,7 +172,7 @@ export default function CategoryDetail() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const cards = category?.cards || category?.knowledgeCards || [];
+  const cards = category?.blocks || category?.cards || category?.knowledgeCards || [];
   const cardCount = cards.length;
 
   const handleUpload = async (file: File) => {
@@ -298,12 +298,25 @@ export default function CategoryDetail() {
           <div key={block.id || i} className="bg-white border border-border p-5">
             <div className="flex items-start justify-between mb-2">
               <div>
-                <h3 className="font-medium">{block.title}</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">{block.sourceName ? `Source: ${block.sourceName}` : ''}{block.confidence ? ` · Confidence: ${block.confidence}%` : ''}</p>
+                <h3 className="font-medium">{block.topic || block.title}</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {block.expertName ? `Source: ${block.expertName}` : (block.sourceName ? `Source: ${block.sourceName}` : '')}
+                  {block.confidence ? ` · Confidence: ${Math.round(block.confidence * 100)}%` : ''}
+                  {block.importance && block.importance !== 'normal' ? ` · ${block.importance.toUpperCase()}` : ''}
+                </p>
               </div>
+              {block.importance === 'critical' && <Badge variant="destructive">Critical</Badge>}
+              {block.importance === 'high' && <Badge>High</Badge>}
               {block.status && <StatusBadge status={block.status} />}
             </div>
-            <p className="text-[13px] text-muted-foreground leading-relaxed mt-2 font-serif">{block.content}</p>
+            <p className="text-[13px] text-muted-foreground leading-relaxed mt-2 font-serif whitespace-pre-line">{block.content}</p>
+            {block.tags?.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-3">
+                {block.tags.map((tag: string, ti: number) => (
+                  <span key={ti} className="text-[11px] px-2 py-0.5 bg-foreground/[0.06] text-muted-foreground">{tag}</span>
+                ))}
+              </div>
+            )}
           </div>
         ))}
       </div>

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, CheckCircle2, Edit3, Flag, Loader2, RefreshCw, RotateCcw, Save, Shield } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Edit3, FileText, Flag, Loader2, RefreshCw, RotateCcw, Save, Shield } from "lucide-react";
 import { TranscriptReviewSkeleton } from "@/components/skeletons";
 import { useApproveTranscript, useSession, useSessionTopics, useSessionTranscript } from "@/hooks/useApi";
 import { api } from "@/lib/api";
@@ -54,6 +54,10 @@ export default function TranscriptReview() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [reprocessing, setReprocessing] = useState(false);
   const [polling, setPolling] = useState(false);
+  const [editingIdx, setEditingIdx] = useState<number | null>(null);
+  const [editText, setEditText] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [flagged, setFlagged] = useState<Set<number>>(new Set());
 
   const dbSegments = useMemo(() => normalizeSegments(Array.isArray(dbSegmentsRaw) ? dbSegmentsRaw : []), [dbSegmentsRaw]);
   const parsedSegments = useMemo(() => parseTranscriptText(session?.transcript), [session?.transcript]);
@@ -101,6 +105,42 @@ export default function TranscriptReview() {
       setReprocessing(false);
     }
   }, [id, refetchSegments, refetchSession]);
+
+  const handleEditStart = (idx: number) => {
+    setEditingIdx(idx);
+    setEditText(transcriptSegments[idx].text);
+  };
+
+  const handleEditSave = async () => {
+    if (editingIdx === null || !id) return;
+    setSaving(true);
+    try {
+      const updated = transcriptSegments.map((s, i) =>
+        i === editingIdx ? { ...s, text: editText } : s
+      );
+      await api.putSessionTranscript(id, updated.map((s) => ({
+        timestamp: s.timestamp,
+        speaker: s.speaker,
+        text: s.text,
+        orderIndex: s.orderIndex,
+      })));
+      await refetchSegments();
+      setEditingIdx(null);
+    } catch {
+      // keep editing open on error
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleToggleFlag = (idx: number) => {
+    setFlagged((prev) => {
+      const next = new Set(prev);
+      if (next.has(idx)) next.delete(idx);
+      else next.add(idx);
+      return next;
+    });
+  };
 
   const handleApprove = async () => {
     if (!id) return;
@@ -186,20 +226,39 @@ export default function TranscriptReview() {
 
           <div className="space-y-4">
             {transcriptSegments.map((seg, i) => (
-              <div key={seg.id ?? i} className="group relative">
+              <div key={seg.id ?? i} className={`group relative ${flagged.has(i) ? "ring-2 ring-amber-400" : ""}`}>
                 <div className="border p-4 transition-colors border-border hover:border-foreground/20">
                   <div className="flex items-center gap-2 mb-2">
                     <span className="text-xs font-mono px-1.5 py-0.5 bg-foreground/[0.06] text-muted-foreground">{seg.timestamp}</span>
                     <span className="text-xs font-semibold text-muted-foreground uppercase">
                       {seg.speaker === "ai" ? "LegacyAI" : "Employee"}
                     </span>
+                    {flagged.has(i) && <span className="text-xs text-amber-600 font-medium">Flagged for review</span>}
                   </div>
-                  <p className="text-[13px] leading-relaxed text-foreground">{seg.text}</p>
+                  {editingIdx === i ? (
+                    <div className="space-y-2">
+                      <textarea
+                        className="w-full text-[13px] leading-relaxed border border-border p-2 rounded resize-y min-h-[80px] focus:outline-none focus:ring-1 focus:ring-foreground/30"
+                        value={editText}
+                        onChange={(e) => setEditText(e.target.value)}
+                      />
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="default" onClick={handleEditSave} disabled={saving} className="gap-1 h-7 text-xs">
+                          {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />} Save
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => setEditingIdx(null)} className="h-7 text-xs">Cancel</Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-[13px] leading-relaxed text-foreground">{seg.text}</p>
+                  )}
                 </div>
-                <div className="absolute right-2 top-2 hidden group-hover:flex gap-1">
-                  <button className="p-1.5 bg-white border border-border hover:bg-foreground/[0.04] text-muted-foreground"><Edit3 className="w-3 h-3" /></button>
-                  <button className="p-1.5 bg-white border border-border hover:bg-foreground/[0.04] text-muted-foreground"><Flag className="w-3 h-3" /></button>
-                </div>
+                {editingIdx !== i && (
+                  <div className="absolute right-2 top-2 hidden group-hover:flex gap-1">
+                    <button onClick={() => handleEditStart(i)} title="Edit segment" className="p-1.5 bg-white border border-border hover:bg-foreground/[0.04] text-muted-foreground"><Edit3 className="w-3 h-3" /></button>
+                    <button onClick={() => handleToggleFlag(i)} title={flagged.has(i) ? "Unflag" : "Flag for review"} className={`p-1.5 bg-white border border-border hover:bg-foreground/[0.04] ${flagged.has(i) ? "text-amber-600" : "text-muted-foreground"}`}><Flag className="w-3 h-3" /></button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -264,9 +323,14 @@ export default function TranscriptReview() {
               {reprocessing ? "Reprocessing..." : "Reprocess transcript"}
             </Button>
           )}
+          {Boolean(session.summary) && (
+            <Link to={`/app/sessions/${id}/report`} className="w-full h-9 border border-border text-[13px] font-medium flex items-center justify-center gap-1.5 hover:bg-foreground/[0.04] transition-colors">
+              <FileText className="w-3.5 h-3.5" /> View report
+            </Link>
+          )}
           <div className="grid grid-cols-2 gap-2">
             <Link to={`/app/sessions/${id}/interview`} className="h-8 border border-border text-[13px] font-medium flex items-center justify-center gap-1 hover:bg-foreground/[0.04] transition-colors"><RotateCcw className="w-3 h-3" /> Re-record</Link>
-            <button className="h-8 border border-border text-[13px] text-muted-foreground font-medium flex items-center justify-center gap-1 hover:bg-foreground/[0.04] transition-colors"><Save className="w-3 h-3" /> Save Draft</button>
+            <Link to={`/app/sessions/${id}`} className="h-8 border border-border text-[13px] text-muted-foreground font-medium flex items-center justify-center gap-1 hover:bg-foreground/[0.04] transition-colors"><Save className="w-3 h-3" /> Session detail</Link>
           </div>
         </div>
       </div>

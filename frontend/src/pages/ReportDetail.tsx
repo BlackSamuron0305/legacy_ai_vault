@@ -1,14 +1,43 @@
-import { Link, useParams } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { Link, useParams, Navigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/common/StatusBadge";
-import { ArrowLeft, Download, CheckCircle2, BookOpen, Users, Server } from "lucide-react";
+import { ArrowLeft, Download, CheckCircle2, Loader2, ExternalLink } from "lucide-react";
 import { ReportDetailSkeleton } from "@/components/skeletons";
 import { useReport } from "@/hooks/useApi";
+import { api } from "@/lib/api";
 
 export default function ReportDetail() {
   const { id } = useParams();
-  const { data: report, isLoading } = useReport(id || '');
+
+  if (id?.startsWith("session-")) {
+    const sessionId = id.replace("session-", "");
+    return <Navigate to={`/app/sessions/${sessionId}/report`} replace />;
+  }
+
+  return <StandaloneReportDetail id={id || ""} />;
+}
+
+function StandaloneReportDetail({ id }: { id: string }) {
+  const { data: report, isLoading } = useReport(id);
+  const [pdfLoading, setPdfLoading] = useState(false);
+
+  const handleExportPdf = async () => {
+    if (!report?.sessionId) return;
+    setPdfLoading(true);
+    try {
+      await api.generateSessionPdf(report.sessionId);
+      const { pdfUrl } = await api.getSessionReportUrls(report.sessionId);
+      if (pdfUrl) {
+        window.open(pdfUrl, "_blank", "noopener,noreferrer");
+      }
+    } catch {
+      // no-op
+    } finally {
+      setPdfLoading(false);
+    }
+  };
 
   if (isLoading) {
     return <ReportDetailSkeleton />;
@@ -17,7 +46,11 @@ export default function ReportDetail() {
   if (!report) {
     return (
       <div className="p-6 max-w-5xl mx-auto">
-        <Button variant="ghost" size="icon" asChild><Link to="/app/reports"><ArrowLeft className="w-4 h-4" /></Link></Button>
+        <Button variant="ghost" size="icon" asChild>
+          <Link to="/app/reports">
+            <ArrowLeft className="w-4 h-4" />
+          </Link>
+        </Button>
         <p className="text-muted-foreground mt-4">Report not found.</p>
       </div>
     );
@@ -26,40 +59,88 @@ export default function ReportDetail() {
   return (
     <div className="p-8 max-w-5xl mx-auto space-y-6">
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" asChild><Link to="/app/reports"><ArrowLeft className="w-4 h-4" /></Link></Button>
+        <Button variant="ghost" size="icon" asChild>
+          <Link to="/app/reports">
+            <ArrowLeft className="w-4 h-4" />
+          </Link>
+        </Button>
         <div className="flex-1">
           <div className="flex items-center gap-3">
-            <h1 className="text-xl font-semibold">{report.title || 'Untitled Report'}</h1>
+            <h1 className="text-xl font-semibold">
+              {report.title || "Untitled Report"}
+            </h1>
             {report.status && <StatusBadge status={report.status} />}
           </div>
-          <p className="text-[13px] text-muted-foreground">{report.type || 'Report'} · Generated {report.createdAt ? new Date(report.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}</p>
+          <p className="text-[13px] text-muted-foreground">
+            {report.type || "Report"}
+            {report.employee ? ` · ${report.employee}` : ""}
+            {report.createdAt
+              ? ` · ${new Date(report.createdAt).toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })}`
+              : ""}
+          </p>
         </div>
-        <button className="h-8 px-4 border border-border text-[13px] font-medium flex items-center gap-1.5 hover:bg-foreground/[0.04] transition-colors"><Download className="w-3.5 h-3.5" /> Export PDF</button>
+        {report.sessionId && (
+          <Link
+            to={`/app/sessions/${report.sessionId}/report`}
+            className="h-8 px-4 border border-border text-[13px] font-medium flex items-center gap-1.5 hover:bg-foreground/[0.04] transition-colors"
+          >
+            <ExternalLink className="w-3.5 h-3.5" /> View Full Report
+          </Link>
+        )}
+        <button
+          className="h-8 px-4 border border-border text-[13px] font-medium flex items-center gap-1.5 hover:bg-foreground/[0.04] transition-colors disabled:opacity-50"
+          onClick={handleExportPdf}
+          disabled={pdfLoading || !report.sessionId}
+        >
+          {pdfLoading ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          ) : (
+            <Download className="w-3.5 h-3.5" />
+          )}
+          Export PDF
+        </button>
       </div>
 
       <div className="bg-white border border-border">
         <div className="p-6 border-b border-border">
-          {report.status === 'finalized' && (
+          {report.status === "finalized" && (
             <div className="flex items-center gap-2 mb-4">
               <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-              <Badge variant="success">Approved & Finalized</Badge>
+              <Badge variant="secondary">Finalized</Badge>
             </div>
           )}
           <h2 className="text-2xl font-semibold font-serif">{report.title}</h2>
-          {report.employeeName && <p className="text-muted-foreground mt-2">{report.employeeName}</p>}
+          {report.employee && (
+            <p className="text-muted-foreground mt-2">{report.employee}</p>
+          )}
         </div>
 
         <div className="p-6 space-y-8 font-serif">
           {report.content ? (
-            <div className="text-[13px] text-muted-foreground leading-relaxed whitespace-pre-wrap">{report.content}</div>
+            <div className="text-[13px] text-muted-foreground leading-relaxed whitespace-pre-wrap">
+              {report.content}
+            </div>
           ) : (
-            <p className="text-[13px] text-muted-foreground">No report content available yet.</p>
+            <p className="text-[13px] text-muted-foreground">
+              No report content available yet.
+            </p>
           )}
         </div>
 
         <div className="p-6 border-t border-border">
           <div className="text-xs text-muted-foreground">
-            Generated by LegacyAI{report.createdAt ? ` on ${new Date(report.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : ''}
+            Generated by LegacyAI
+            {report.createdAt
+              ? ` on ${new Date(report.createdAt).toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })}`
+              : ""}
           </div>
         </div>
       </div>

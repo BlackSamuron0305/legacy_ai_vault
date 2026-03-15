@@ -180,6 +180,23 @@ class ApiClient {
         return this.request<any>(`/sessions/${id}/reprocess`, { method: 'POST' });
     }
 
+    async getSessionReportHtml(id: string): Promise<string> {
+        const token = this.getToken();
+        const headers: Record<string, string> = {};
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        const res = await fetch(`${API_URL}/sessions/${id}/report/html`, { headers });
+        if (!res.ok) throw new Error('Report not available');
+        return res.text();
+    }
+
+    async generateSessionPdf(id: string) {
+        return this.request<{ reportPdfPath: string; reportHtmlPath: string }>(`/sessions/${id}/report/generate-pdf`, { method: 'POST' });
+    }
+
+    async getSessionReportUrls(id: string) {
+        return this.request<{ htmlUrl: string; pdfUrl: string | null }>(`/sessions/${id}/report/urls`);
+    }
+
     async getSessionTopics(id: string) {
         return this.request<any[]>(`/sessions/${id}/topics`);
     }

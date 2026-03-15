@@ -11,7 +11,7 @@ class ProcessingService:
         self.base_url = "https://router.huggingface.co/hf-inference/models" 
         # Switching to Qwen/Qwen2.5-72B-Instruct or similar strong instruction model for processing text
         self.chat_url = "https://router.huggingface.co/v1/chat/completions"
-        self.default_model = "Qwen/Qwen2.5-72B-Instruct" 
+        self.default_model = "Qwen/Qwen2.5-72B-Instruct:novita" 
 
     def clean_transcript(self, transcript):
         """

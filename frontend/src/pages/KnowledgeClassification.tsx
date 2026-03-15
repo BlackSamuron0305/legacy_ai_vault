@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/common/StatusBadge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -181,10 +181,10 @@ export default function KnowledgeClassification() {
             Risk assessment and organizational intelligence analysis
           </p>
         </div>
-        <a href={`/app/sessions/${id}/review`} className="h-8 px-4 border border-border text-[13px] font-medium flex items-center gap-1.5 hover:bg-foreground/[0.04] transition-colors">
+        <Link to={`/app/sessions/${id}/report`} className="h-8 px-4 border border-border text-[13px] font-medium flex items-center gap-1.5 hover:bg-foreground/[0.04] transition-colors">
           <FileText className="w-3.5 h-3.5" />
           Back to Report
-        </a>
+        </Link>
       </div>
 
       {/* Overall Risk Assessment */}

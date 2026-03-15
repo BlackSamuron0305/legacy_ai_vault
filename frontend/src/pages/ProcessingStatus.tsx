@@ -54,7 +54,7 @@ export default function ProcessingStatus() {
       <div className="bg-white border border-border p-6">
         <div className="space-y-0">
           {processing.steps.map((step: any, i: number) => (
-            <div key={step.label} className="flex gap-4 relative">
+            <div key={step.name || step.label || i} className="flex gap-4 relative">
               {/* Vertical line */}
               {i < processing.steps.length - 1 && (
                 <div className={`absolute left-[15px] top-8 w-0.5 h-[calc(100%-8px)] ${
@@ -124,13 +124,16 @@ export default function ProcessingStatus() {
 
       {processing.reportReady ? (
         <div className="bg-emerald-50 border border-emerald-200 p-4 text-[13px] text-emerald-700">
-          Report draft is ready. You can proceed to transcript review.
+          Processing complete. Your report is ready to view.
         </div>
       ) : null}
 
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
         {processing.reportReady ? (
-          <Link to={`/app/sessions/${id}/review`} className="h-9 px-4 bg-foreground text-background text-[13px] font-medium flex items-center gap-1.5 hover:bg-foreground/90 transition-colors">Open Transcript Review <ArrowRight className="w-4 h-4" /></Link>
+          <>
+            <Link to={`/app/sessions/${id}/report`} className="h-9 px-4 bg-foreground text-background text-[13px] font-medium flex items-center gap-1.5 hover:bg-foreground/90 transition-colors"><FileText className="w-4 h-4" /> View Report <ArrowRight className="w-4 h-4" /></Link>
+            <Link to={`/app/sessions/${id}`} className="h-9 px-4 border border-border text-[13px] font-medium flex items-center gap-1.5 hover:bg-foreground/[0.04] transition-colors">Session Detail</Link>
+          </>
         ) : (
           <Link to={`/app/sessions/${id}`} className="h-9 px-4 border border-border text-[13px] font-medium flex items-center gap-1.5 hover:bg-foreground/[0.04] transition-colors">View Session Detail <ArrowRight className="w-4 h-4" /></Link>
         )}

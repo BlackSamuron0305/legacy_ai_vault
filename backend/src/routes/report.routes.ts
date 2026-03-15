@@ -1,19 +1,20 @@
 import { Router, Response } from 'express';
 import { db } from '../db/drizzle';
 import { reports, employees, sessions, users } from '../db/schema';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, isNotNull, and } from 'drizzle-orm';
 import { AuthRequest, requireAuth } from '../middleware/auth';
 
 const router = Router();
 router.use(requireAuth);
 
-// GET /api/reports
+// GET /api/reports — returns both standalone reports AND session-generated reports
 router.get('/', async (req: AuthRequest, res: Response) => {
     try {
         const [user] = await db.select().from(users).where(eq(users.id, req.userId!));
         if (!user?.workspaceId) return res.status(400).json({ error: 'No workspace' });
 
-        const result = await db.select({
+        // 1. Standalone reports from the reports table
+        const standaloneResult = await db.select({
             report: reports,
             employeeName: employees.name,
         })
@@ -22,10 +23,52 @@ router.get('/', async (req: AuthRequest, res: Response) => {
             .where(eq(reports.workspaceId, user.workspaceId))
             .orderBy(desc(reports.lastUpdated));
 
-        res.json(result.map(r => ({
+        const standaloneReports = standaloneResult.map(r => ({
             ...r.report,
-            employee: r.employeeName || 'Multiple',
-        })));
+            employee: r.employeeName || 'Unknown',
+            source: 'report' as const,
+        }));
+
+        // 2. Session-generated reports (sessions with a summary/report)
+        const sessionResult = await db.select({
+            session: sessions,
+            employeeName: employees.name,
+            employeeRole: employees.role,
+            employeeDepartment: employees.department,
+        })
+            .from(sessions)
+            .leftJoin(employees, eq(sessions.employeeId, employees.id))
+            .where(and(
+                eq(sessions.workspaceId, user.workspaceId),
+                isNotNull(sessions.summary),
+            ))
+            .orderBy(desc(sessions.lastActivity));
+
+        const sessionReports = sessionResult
+            .filter(r => r.session.summary && r.session.summary.trim().length > 0)
+            .map(r => ({
+                id: `session-${r.session.id}`,
+                sessionId: r.session.id,
+                title: `${r.employeeName || 'Session'} — Knowledge Capture Report`,
+                employee: r.employeeName || 'Unknown',
+                employeeRole: r.employeeRole,
+                department: r.employeeDepartment,
+                type: 'Handover Report',
+                status: r.session.reportStatus || 'draft',
+                exportStatus: r.session.reportPdfPath ? 'ready' : 'pending',
+                lastUpdated: r.session.lastActivity,
+                createdAt: r.session.createdAt,
+                hasPdf: Boolean(r.session.reportPdfPath),
+                source: 'session' as const,
+            }));
+
+        const all = [...sessionReports, ...standaloneReports].sort((a, b) => {
+            const dateA = new Date(a.lastUpdated || a.createdAt || 0).getTime();
+            const dateB = new Date(b.lastUpdated || b.createdAt || 0).getTime();
+            return dateB - dateA;
+        });
+
+        res.json(all);
     } catch (error: any) {
         res.status(500).json({ error: error.message });
     }

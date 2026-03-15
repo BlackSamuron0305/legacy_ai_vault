@@ -44,6 +44,7 @@ import Settings, {
   SettingsAI, SettingsTranscript, SettingsOutput, SettingsNotifications,
   SettingsIntegrations, SettingsAppearance
 } from "./pages/Settings";
+import ReportViewer from "./pages/ReportViewer";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -86,6 +87,7 @@ const AppRoutes = () => (
         <Route path="sessions/:id/review" element={<TranscriptReview />} />
         <Route path="sessions/:id/processing" element={<ProcessingStatus />} />
         <Route path="sessions/:id/classification" element={<KnowledgeClassification />} />
+        <Route path="sessions/:id/report" element={<ReportViewer />} />
         <Route path="knowledge" element={<KnowledgeBase />} />
         <Route path="knowledge/:id" element={<CategoryDetail />} />
         <Route path="reports" element={<Reports />} />

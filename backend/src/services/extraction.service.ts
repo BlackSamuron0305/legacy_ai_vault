@@ -19,7 +19,7 @@ interface ExtractedCard {
  * Extract knowledge cards from a session transcript using LLM,
  * generate embeddings, and store everything via Drizzle.
  */
-export async function extractKnowledge(sessionId: string, employeeId: string, transcript: string): Promise<void> {
+export async function extractKnowledge(sessionId: string, employeeId: string | null, transcript: string): Promise<void> {
     log('Starting knowledge extraction', { sessionId });
 
     try {
@@ -69,7 +69,7 @@ export async function extractKnowledge(sessionId: string, employeeId: string, tr
 
             await db.insert(knowledgeCards).values({
                 sessionId,
-                employeeId,
+                employeeId: employeeId || undefined,
                 topic: card.topic,
                 content: card.content,
                 category: card.category || 'Uncategorized',
@@ -77,42 +77,34 @@ export async function extractKnowledge(sessionId: string, employeeId: string, tr
                 importance: card.importance,
                 confidence: card.confidence || 0.9,
                 embedding,
+                source: 'interview',
             });
         }
 
-        // 4. Generate summary
-        const summary = await createHfChatCompletion({
-            messages: [
-                { role: 'system', content: 'Summarize this interview in 2-3 sentences.' },
-                { role: 'user', content: transcript },
-            ],
-            temperature: 0.3,
-            maxTokens: 300,
-        });
-
-        // 5. Update session
+        // 4. Update session (preserve existing summary/report — never overwrite it here)
         await db.update(sessions)
             .set({
-                status: 'awaiting_review',
-                summary,
                 topicsExtracted: cards.length,
-                transcriptStatus: 'generated',
                 lastActivity: new Date(),
             })
             .where(eq(sessions.id, sessionId));
 
-        // 6. Update employee
-        await db.update(employees)
-            .set({
-                sessionStatus: 'completed',
-                transcriptStatus: 'generated',
-                coverageScore: Math.min(100, cards.length * 6),
-            })
-            .where(eq(employees.id, employeeId));
+        // 6. Update employee (if assigned)
+        if (employeeId) {
+            await db.update(employees)
+                .set({
+                    sessionStatus: 'completed',
+                    transcriptStatus: 'generated',
+                    coverageScore: Math.min(100, cards.length * 6),
+                })
+                .where(eq(employees.id, employeeId));
+        }
 
         // 7. Get workspace for activity
         const [session] = await db.select().from(sessions).where(eq(sessions.id, sessionId));
-        const [emp] = await db.select().from(employees).where(eq(employees.id, employeeId));
+        const emp = employeeId
+            ? (await db.select().from(employees).where(eq(employees.id, employeeId)))[0]
+            : null;
         if (session?.workspaceId) {
             await db.insert(activities).values({
                 workspaceId: session.workspaceId,

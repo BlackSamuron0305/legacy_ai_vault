@@ -7,6 +7,7 @@ import { log, logDebug, logError, logWarn } from '../utils/logger';
 import { extractKnowledge } from '../services/extraction.service';
 import { sendToMakeWebhook } from '../services/webhook.service';
 import { getLatestConversationId, getConversationTranscript } from '../services/elevenlabs.service';
+import { uploadReportHtml, generatePdfFromHtml, uploadReportPdf, getReportSignedUrls } from '../services/report-storage.service';
 
 type ParsedSegment = { timestamp: string; speaker: 'ai' | 'employee'; text: string };
 
@@ -390,9 +391,9 @@ router.post('/:id/end', async (req: AuthRequest, res: Response) => {
                         });
                     }
 
-                    if (resolvedTranscript && session.employeeId) {
+                    if (resolvedTranscript) {
                         try {
-                            await extractKnowledge(session.id, session.employeeId, resolvedTranscript);
+                            await extractKnowledge(session.id, session.employeeId || null, resolvedTranscript);
                             log('Knowledge extraction completed', { sessionId: session.id });
                         } catch (extractionError: any) {
                             logError('Knowledge extraction failed (non-fatal)', {
@@ -703,6 +704,121 @@ router.get('/:id/processing', async (req: AuthRequest, res: Response) => {
     }
 });
 
+// GET /api/sessions/:id/report/html — serve the raw HTML report content
+router.get('/:id/report/html', async (req: AuthRequest, res: Response) => {
+    try {
+        const [session] = await db.select().from(sessions).where(eq(sessions.id, req.params.id));
+        if (!session) return res.status(404).json({ error: 'Session not found' });
+
+        const html = session.summary || '';
+        if (!html.trim()) {
+            return res.status(404).json({ error: 'No report generated yet' });
+        }
+
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.send(html);
+    } catch (error: any) {
+        res.status(500).json({ error: error?.message || 'Internal server error' });
+    }
+});
+
+// POST /api/sessions/:id/report/generate-pdf — generate PDF on demand from stored HTML
+router.post('/:id/report/generate-pdf', async (req: AuthRequest, res: Response) => {
+    try {
+        const [session] = await db.select().from(sessions).where(eq(sessions.id, req.params.id));
+        if (!session) return res.status(404).json({ error: 'Session not found' });
+
+        let html = session.summary || '';
+        if (!html.trim()) {
+            return res.status(404).json({ error: 'No report to generate PDF from' });
+        }
+
+        html = html.trim();
+        if (html.startsWith('```html')) html = html.slice(7);
+        else if (html.startsWith('```')) html = html.slice(3);
+        if (html.endsWith('```')) html = html.slice(0, -3);
+        html = html.trim();
+
+        log('Generating PDF on demand', { sessionId: session.id });
+
+        const pdfBuffer = await generatePdfFromHtml(html);
+        const reportPdfPath = await uploadReportPdf(session.id, pdfBuffer);
+
+        let reportHtmlPath = session.reportHtmlPath;
+        if (!reportHtmlPath) {
+            reportHtmlPath = await uploadReportHtml(session.id, html);
+        }
+
+        await db.update(sessions)
+            .set({ reportPdfPath, reportHtmlPath: reportHtmlPath ?? undefined, lastActivity: new Date() })
+            .where(eq(sessions.id, session.id));
+
+        log('PDF generated and uploaded', { sessionId: session.id, reportPdfPath });
+
+        res.json({ reportPdfPath, reportHtmlPath });
+    } catch (error: any) {
+        logError('PDF generation failed', { sessionId: req.params.id, error: error?.message || error });
+        res.status(500).json({ error: `PDF generation failed: ${error?.message || 'Unknown error'}` });
+    }
+});
+
+// GET /api/sessions/:id/report/urls — signed URLs for report HTML and PDF
+router.get('/:id/report/urls', async (req: AuthRequest, res: Response) => {
+    try {
+        const [user] = await db.select().from(users).where(eq(users.id, req.userId!));
+        if (!user?.workspaceId) return res.status(400).json({ error: 'No workspace' });
+        const [session] = await db.select().from(sessions).where(eq(sessions.id, req.params.id));
+        if (!session) return res.status(404).json({ error: 'Session not found' });
+        if (session.workspaceId !== user.workspaceId) return res.status(403).json({ error: 'Forbidden' });
+        if (!session.reportHtmlPath) {
+            return res.status(404).json({ error: 'Report not ready or paths missing' });
+        }
+        const pdfPath = session.reportPdfPath ?? session.reportHtmlPath;
+        const urls = await getReportSignedUrls(session.reportHtmlPath, pdfPath);
+        res.json({
+            htmlUrl: urls.htmlUrl,
+            pdfUrl: session.reportPdfPath ? urls.pdfUrl : null,
+        });
+    } catch (error: any) {
+        res.status(500).json({ error: error?.message || error });
+    }
+});
+
+// PUT /api/sessions/:id/transcript — replace transcript segments
+router.put('/:id/transcript', async (req: AuthRequest, res: Response) => {
+    try {
+        const [user] = await db.select().from(users).where(eq(users.id, req.userId!));
+        if (!user?.workspaceId) return res.status(400).json({ error: 'No workspace' });
+        const [session] = await db.select().from(sessions).where(eq(sessions.id, req.params.id));
+        if (!session) return res.status(404).json({ error: 'Session not found' });
+
+        const { segments } = req.body as { segments: Array<{ timestamp?: string; speaker?: string; text?: string; orderIndex?: number }> };
+        if (!Array.isArray(segments)) return res.status(400).json({ error: 'segments must be an array' });
+
+        await db.delete(transcriptSegments).where(eq(transcriptSegments.sessionId, session.id));
+
+        const rows = segments.map((s, i) => ({
+            sessionId: session.id,
+            timestamp: s.timestamp || '--:--:--',
+            speaker: (s.speaker === 'ai' ? 'ai' : 'employee') as 'ai' | 'employee',
+            text: s.text ?? '',
+            orderIndex: s.orderIndex ?? i,
+        }));
+
+        if (rows.length > 0) {
+            await db.insert(transcriptSegments).values(rows);
+        }
+
+        const updated = await db.select().from(transcriptSegments)
+            .where(eq(transcriptSegments.sessionId, session.id))
+            .orderBy(transcriptSegments.orderIndex);
+
+        res.json(updated);
+    } catch (error: any) {
+        res.status(500).json({ error: error?.message || 'Internal server error' });
+    }
+});
+
 // GET /api/sessions/:id/classification — classify the generated report via AI service
 router.get('/:id/classification', async (req: AuthRequest, res: Response) => {
     try {
@@ -741,7 +857,7 @@ router.get('/:id/classification', async (req: AuthRequest, res: Response) => {
             return res.status(502).json({ error: `Classification failed: ${errorText || response.statusText}` });
         }
 
-        const classification = await response.json();
+        const classification = await response.json() as any;
 
         await db.update(sessions)
             .set({
@@ -750,6 +866,73 @@ router.get('/:id/classification', async (req: AuthRequest, res: Response) => {
                 lastActivity: new Date(),
             })
             .where(eq(sessions.id, req.params.id));
+
+        // Create knowledge cards from classification results
+        const classificationData = classification.classification || classification;
+        const classifiedItems = classificationData.classification_results;
+        if (Array.isArray(classifiedItems) && classifiedItems.length > 0) {
+            const { createEmbedding } = await import('../services/embedding.service');
+
+            for (const item of classifiedItems) {
+                const matrix = item.classification_matrix || {};
+                const category = matrix.knowledge_type || 'Uncategorized';
+                const tags = [
+                    matrix.criticality,
+                    matrix.urgency,
+                    matrix.audience,
+                    matrix.risk_level,
+                ].filter(Boolean);
+
+                const importance = matrix.criticality === 'critical' || matrix.criticality === 'high'
+                    ? (matrix.criticality as 'low' | 'normal' | 'high' | 'critical')
+                    : 'normal';
+
+                const content = [
+                    item.topic,
+                    item.dependency_analysis?.dependencies?.length
+                        ? `Dependencies: ${item.dependency_analysis.dependencies.join(', ')}`
+                        : null,
+                    item.transfer_complexity?.time_to_transfer
+                        ? `Transfer time: ${item.transfer_complexity.time_to_transfer}`
+                        : null,
+                    item.dependency_analysis?.single_point_of_failure
+                        ? 'WARNING: Single point of failure'
+                        : null,
+                ].filter(Boolean).join('\n');
+
+                let embedding: number[] | undefined;
+                try {
+                    embedding = await createEmbedding(`${item.topic}: ${content}`);
+                } catch {
+                    log('Embedding generation failed for classified item, storing without embedding');
+                }
+
+                await db.insert(knowledgeCards).values({
+                    sessionId: req.params.id,
+                    employeeId: sessionRow.session.employeeId || undefined,
+                    topic: item.topic,
+                    content,
+                    category,
+                    tags,
+                    importance,
+                    confidence: item.confidence_score || 0.9,
+                    embedding,
+                    source: 'interview',
+                });
+            }
+
+            await db.update(sessions)
+                .set({
+                    topicsExtracted: classifiedItems.length,
+                    lastActivity: new Date(),
+                })
+                .where(eq(sessions.id, req.params.id));
+
+            log('Knowledge cards created from classification', {
+                sessionId: req.params.id,
+                cardCount: classifiedItems.length,
+            });
+        }
 
         return res.json(classification);
     } catch (error: any) {

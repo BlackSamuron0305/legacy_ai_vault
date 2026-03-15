@@ -8,6 +8,7 @@ import { api } from "@/lib/api";
 type TranscriptSegment = { id?: string; timestamp: string; speaker: string; text: string; orderIndex: number };
 
 const ELEVENLABS_AGENT_ID = import.meta.env.VITE_ELEVENLABS_AGENT_ID || "agent_8901kkq04wagefmr6qtbvw8ab0z2";
+const WIDGET_SCRIPT_URL = "https://unpkg.com/@elevenlabs/convai-widget-embed";
 
 function formatElapsed(totalSeconds: number): string {
   const hours = Math.floor(totalSeconds / 3600);
@@ -65,14 +66,22 @@ export default function Interview() {
   const [callActive, setCallActive] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const conversationIdRef = useRef<string | null>(null);
   const [ending, setEnding] = useState(false);
   const [endSent, setEndSent] = useState(false);
   const [showThankYou, setShowThankYou] = useState(false);
 
   useEffect(() => {
-    customElements.whenDefined("elevenlabs-convai").then(() => setScriptReady(true));
-    const timer = setTimeout(() => setScriptReady(true), 3000);
-    return () => clearTimeout(timer);
+    if (!document.querySelector(`script[src="${WIDGET_SCRIPT_URL}"]`)) {
+      const script = document.createElement("script");
+      script.src = WIDGET_SCRIPT_URL;
+      script.async = true;
+      script.onload = () => setScriptReady(true);
+      script.onerror = () => setSessionError("Failed to load the interview widget. Please refresh the page.");
+      document.body.appendChild(script);
+    } else {
+      setScriptReady(true);
+    }
   }, []);
 
   useEffect(() => {
@@ -142,6 +151,7 @@ export default function Interview() {
       // eslint-disable-next-line no-console
       console.debug("ElevenLabs conversation started event detail:", d, "resolvedId:", cid);
       if (cid) {
+        conversationIdRef.current = String(cid);
         setConversationId(String(cid));
         setCallActive(true);
       }
@@ -151,8 +161,8 @@ export default function Interview() {
       const cid = d?.conversationId || d?.conversation_id || d?.id || null;
       // eslint-disable-next-line no-console
       console.debug("ElevenLabs conversation ended event detail:", d, "resolvedId:", cid);
-      // Always try to set conversation ID from ended event, even if call was short
       if (cid) {
+        conversationIdRef.current = String(cid);
         setConversationId(String(cid));
       }
       setCallActive(false);
@@ -194,37 +204,56 @@ export default function Interview() {
     if (!id) return;
     try {
       setEnding(true);
-      let finalConversationId = conversationId;
 
-      // If no conversation ID from events, try to get latest from API
+      // Step 1: hang up the widget first — this triggers the conversation_ended event
+      triggerWidgetHangup();
+      setCallActive(false);
+
+      // Step 2: wait for the conversation_ended event to set conversationId via the ref
+      let finalConversationId = conversationIdRef.current;
+      if (!finalConversationId) {
+        for (let i = 0; i < 10; i++) {
+          await new Promise((r) => setTimeout(r, 500));
+          if (conversationIdRef.current) {
+            finalConversationId = conversationIdRef.current;
+            break;
+          }
+        }
+      }
+
+      // Step 3: try the API fallback if still no ID
       if (!finalConversationId) {
         try {
-          const response = await fetch(`/api/elevenlabs/latest-conversation`);
+          const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+          const response = await fetch(`${apiBase.replace(/\/api\/?$/, '')}/api/elevenlabs/latest-conversation`);
           if (response.ok) {
             const data = await response.json();
             if (data.conversation_id) {
               finalConversationId = data.conversation_id;
-              setConversationId(finalConversationId);
             }
           }
-        } catch (apiError) {
-          console.warn('Failed to get latest conversation from API:', apiError);
+        } catch {
+          // Non-critical fallback
         }
       }
 
-      if (!finalConversationId) {
-        setSessionError("The call never started successfully, so we can't finish this interview. Please start the call, speak, then hang up to process the transcript.");
-        return;
+      // Step 4: end the session — with or without the conversation ID
+      const duration = formatDuration(elapsedSeconds);
+      if (finalConversationId) {
+        setConversationId(finalConversationId);
+        await api.endSession(id, {
+          transcript: "",
+          duration,
+          elevenlabsConversationId: finalConversationId,
+        });
+      } else {
+        // End without conversation ID — backend will try to auto-fetch from ElevenLabs
+        await api.endSession(id, {
+          transcript: "",
+          duration,
+        });
       }
 
-      triggerWidgetHangup();
-      setCallActive(false);
-      await new Promise((r) => setTimeout(r, 800));
-      await api.endSession(id, {
-        transcript: "",
-        duration: formatDuration(elapsedSeconds),
-        elevenlabsConversationId: finalConversationId,
-      });
       setEndSent(true);
       setShowThankYou(true);
     } catch (error: any) {
@@ -239,19 +268,6 @@ export default function Interview() {
       <div className="h-[calc(100vh-3.5rem)] flex items-center justify-center">
         <div className="text-sm text-muted-foreground flex items-center gap-2">
           <Loader2 className="w-4 h-4 animate-spin" /> Loading interview widget...
-        </div>
-      </div>
-    );
-  }
-
-  if (sessionError) {
-    return (
-      <div className="h-[calc(100vh-3.5rem)] flex items-center justify-center">
-        <div className="max-w-md text-center space-y-3">
-          <p className="text-sm text-destructive">{sessionError}</p>
-          <Button asChild variant="outline">
-            <Link to={`/app/sessions/${id}`}>Back to Session</Link>
-          </Button>
         </div>
       </div>
     );
@@ -273,6 +289,13 @@ export default function Interview() {
           <Link to={`/app/sessions/${id}`} className="text-[13px] font-medium text-muted-foreground hover:text-foreground">Back to Session</Link>
         </div>
       </div>
+
+      {sessionError && (
+        <div className="bg-destructive/10 border-b border-destructive/20 px-6 py-2 flex items-center justify-between shrink-0">
+          <p className="text-xs text-destructive">{sessionError}</p>
+          <button className="text-xs text-destructive underline ml-4" onClick={() => setSessionError(null)}>Dismiss</button>
+        </div>
+      )}
 
       <div className="flex-1 flex overflow-hidden">
         <div className="flex-1 flex items-center justify-center gap-10 p-8 overflow-y-auto">
