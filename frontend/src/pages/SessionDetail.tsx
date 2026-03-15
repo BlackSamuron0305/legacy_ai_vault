@@ -32,6 +32,19 @@ export default function SessionDetail() {
         <Link to={`/app/sessions/${id}/classification`} className="h-8 px-4 border border-border text-[13px] font-medium flex items-center gap-1.5 hover:bg-foreground/[0.04] transition-colors"><AlertCircle className="w-3.5 h-3.5" /> Classification</Link>
       </div>
 
+      {session.status === 'processing_failed' && (
+        <div className="border border-destructive/30 bg-destructive/5 px-4 py-3 flex items-start gap-3 text-[13px]">
+          <AlertCircle className="w-4 h-4 text-destructive mt-0.5" />
+          <div>
+            <p className="font-semibold text-destructive">AI processing failed for this session.</p>
+            <p className="text-muted-foreground">
+              The automatic transcript processing and report generation did not complete successfully.
+              You can still review and edit the transcript, then retry processing from the processing screen if needed.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Summary Cards */}
       <div className="grid grid-cols-4 gap-4">
         {[

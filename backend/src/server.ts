@@ -76,6 +76,35 @@ app.use('/api/chat', chatRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/admin', adminRoutes);
 
+// ElevenLabs utility proxy routes (to AI service)
+app.get('/api/elevenlabs/latest-conversation', async (_req, res) => {
+    const aiServiceUrl = process.env.AI_SERVICE_URL || 'http://localhost:5000';
+    try {
+        const response = await fetch(`${aiServiceUrl}/api/elevenlabs/latest-conversation`);
+        const body = await response.text();
+
+        // Try to parse JSON, but fall back to raw text if needed
+        let json: any;
+        try {
+            json = JSON.parse(body);
+        } catch {
+            json = { error: body || 'Unexpected response from AI service' };
+        }
+
+        if (!response.ok) {
+            return res.status(response.status).json(json);
+        }
+
+        return res.json(json);
+    } catch (error: any) {
+        log('Proxy /api/elevenlabs/latest-conversation failed', {
+            error: error?.message || error,
+            aiServiceUrl,
+        });
+        return res.status(502).json({ error: 'Failed to reach AI service for latest conversation' });
+    }
+});
+
 // Health Check
 app.get('/api/health', (_req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });

@@ -97,6 +97,10 @@ export function useKnowledgeStats() {
     return useQuery({ queryKey: ['knowledge', 'stats'], queryFn: () => api.getKnowledgeStats() });
 }
 
+export function useKnowledgeDocuments() {
+    return useQuery({ queryKey: ['knowledge', 'documents'], queryFn: () => api.getKnowledgeDocuments() });
+}
+
 export function useCategoryDetail(name: string) {
     return useQuery({
         queryKey: ['knowledge', 'category', name],

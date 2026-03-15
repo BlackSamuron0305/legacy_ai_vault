@@ -1,36 +1,21 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Clock, AlertCircle, Loader2, Square } from "lucide-react";
+import { Clock, Loader2 } from "lucide-react";
 import { api } from "@/lib/api";
 
-const WIDGET_AGENT_ID = "agent_8901kkq04wagefmr6qtbvw8ab0z2";
-const WIDGET_SCRIPT_URL = "https://unpkg.com/@elevenlabs/convai-widget-embed";
+type TranscriptSegment = { id?: string; timestamp: string; speaker: string; text: string; orderIndex: number };
 
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      "elevenlabs-convai": React.DetailedHTMLProps<
-        React.HTMLAttributes<HTMLElement> & {
-          "agent-id": string;
-          variant?: string;
-        },
-        HTMLElement
-      >;
-    }
-  }
-}
+const ELEVENLABS_AGENT_ID = import.meta.env.VITE_ELEVENLABS_AGENT_ID || "agent_8901kkq04wagefmr6qtbvw8ab0z2";
 
 function formatElapsed(totalSeconds: number): string {
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
-
   if (hours > 0) {
     return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
   }
-
   return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
@@ -42,104 +27,218 @@ function formatDuration(totalSeconds: number): string {
   return `${minutes}m ${seconds}s`;
 }
 
+function findAndClickInShadowRoot(root: ShadowRoot | HTMLElement, predicate: (el: HTMLElement) => boolean): boolean {
+  const visited = new Set<HTMLElement | ShadowRoot>();
+
+  const walk = (node: HTMLElement | ShadowRoot): boolean => {
+    if (visited.has(node)) return false;
+    visited.add(node);
+
+    if (node instanceof HTMLElement && predicate(node)) {
+      node.click();
+      return true;
+    }
+
+    const children = node instanceof ShadowRoot ? Array.from(node.children) : Array.from(node.children);
+    for (const child of children) {
+      const el = child as HTMLElement;
+      // First walk the element itself
+      if (walk(el)) return true;
+      // Then, if it has a shadow root, walk inside that
+      if (el.shadowRoot && walk(el.shadowRoot)) return true;
+    }
+
+    return false;
+  };
+
+  return walk(root);
+}
+
 export default function Interview() {
   const { id } = useParams();
   const navigate = useNavigate();
-
-  const [sessionLoading, setSessionLoading] = useState(true);
-  const [sessionError, setSessionError] = useState<string | null>(null);
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const [ending, setEnding] = useState(false);
-  const [sessionStarted, setSessionStarted] = useState(false);
-  const [employeeName, setEmployeeName] = useState("Employee");
-  const [employeeRole, setEmployeeRole] = useState("");
-  const [department, setDepartment] = useState("");
   const widgetContainerRef = useRef<HTMLDivElement>(null);
+  const widgetRef = useRef<HTMLElement | null>(null);
 
-  // Load the widget script and create the custom element
+  const [scriptReady, setScriptReady] = useState(false);
+  const [sessionError, setSessionError] = useState<string | null>(null);
+  const [callActive, setCallActive] = useState(false);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [ending, setEnding] = useState(false);
+  const [endSent, setEndSent] = useState(false);
+  const [showThankYou, setShowThankYou] = useState(false);
+
   useEffect(() => {
-    if (!document.querySelector(`script[src="${WIDGET_SCRIPT_URL}"]`)) {
-      const script = document.createElement("script");
-      script.src = WIDGET_SCRIPT_URL;
-      script.async = true;
-      document.body.appendChild(script);
-    }
-
-    return () => {
-      const widgets = document.querySelectorAll("elevenlabs-convai");
-      widgets.forEach((w) => w.remove());
-    };
+    customElements.whenDefined("elevenlabs-convai").then(() => setScriptReady(true));
+    const timer = setTimeout(() => setScriptReady(true), 3000);
+    return () => clearTimeout(timer);
   }, []);
 
-  // Initialize the session
   useEffect(() => {
-    let active = true;
+    if (!callActive) return;
+    const timer = window.setInterval(() => {
+      setElapsedSeconds((prev) => prev + 1);
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [callActive]);
 
-    async function initializeSession() {
-      if (!id) {
-        setSessionError("Missing session id");
-        setSessionLoading(false);
+  const triggerWidgetCall = useCallback(() => {
+    const el = widgetRef.current;
+    if (!el) return;
+    const tryTrigger = () => {
+      const withShadow = (el as HTMLElement & { startCall?: () => void }).startCall;
+      if (typeof withShadow === "function") {
+        withShadow.call(el);
+        return true;
+      }
+      const root = el.shadowRoot ?? el;
+      return findAndClickInShadowRoot(root as ShadowRoot, (node) => {
+        const t = (node.textContent ?? "").toLowerCase();
+        const aria = (node.getAttribute?.("aria-label") ?? "").toLowerCase();
+        return (
+          (node.tagName === "BUTTON" || node.getAttribute?.("role") === "button") &&
+          (t.includes("start") || t.includes("call") || t.includes("begin") || t.includes("interview") || aria.includes("start") || aria.includes("call"))
+        );
+      });
+    };
+    tryTrigger();
+    requestAnimationFrame(() => {
+      setTimeout(tryTrigger, 150);
+    });
+  }, []);
+
+  const triggerWidgetHangup = useCallback(() => {
+    const el = widgetRef.current;
+    if (!el) return;
+    const tryTrigger = () => {
+      const withShadow = (el as HTMLElement & { endCall?: () => void }).endCall;
+      if (typeof withShadow === "function") {
+        withShadow.call(el);
+        return;
+      }
+      const root = el.shadowRoot ?? el;
+      findAndClickInShadowRoot(root as ShadowRoot, (node) => {
+        const t = (node.textContent ?? "").toLowerCase();
+        const aria = (node.getAttribute?.("aria-label") ?? "").toLowerCase();
+        return (
+          (node.tagName === "BUTTON" || node.getAttribute?.("role") === "button") &&
+          (t.includes("end") || t.includes("hang") || t.includes("stop") || aria.includes("end") || aria.includes("hang"))
+        );
+      });
+    };
+    tryTrigger();
+    requestAnimationFrame(() => setTimeout(tryTrigger, 150));
+  }, []);
+
+  useEffect(() => {
+    const el = widgetContainerRef.current?.querySelector?.("elevenlabs-convai") ?? widgetRef.current ?? null;
+    if (!el) return undefined;
+    widgetRef.current = el as HTMLElement;
+    const onStarted = (e: Event) => {
+      const d = (e as CustomEvent).detail as any;
+      const cid = d?.conversationId || d?.conversation_id || d?.id || null;
+      // Helpful for debugging in the browser console
+      // eslint-disable-next-line no-console
+      console.debug("ElevenLabs conversation started event detail:", d, "resolvedId:", cid);
+      if (cid) {
+        setConversationId(String(cid));
+        setCallActive(true);
+      }
+    };
+    const onEnded = (e: Event) => {
+      const d = (e as CustomEvent).detail as any;
+      const cid = d?.conversationId || d?.conversation_id || d?.id || null;
+      // eslint-disable-next-line no-console
+      console.debug("ElevenLabs conversation ended event detail:", d, "resolvedId:", cid);
+      // Always try to set conversation ID from ended event, even if call was short
+      if (cid) {
+        setConversationId(String(cid));
+      }
+      setCallActive(false);
+      setEndSent(true);
+      setShowThankYou(true);
+    };
+    el.addEventListener("conversation_started", onStarted);
+    el.addEventListener("conversation_ended", onEnded);
+    el.addEventListener("conversationstarted", onStarted);
+    el.addEventListener("conversationended", onEnded);
+    return () => {
+      el.removeEventListener("conversation_started", onStarted);
+      el.removeEventListener("conversation_ended", onEnded);
+      el.removeEventListener("conversationstarted", onStarted);
+      el.removeEventListener("conversationended", onEnded);
+    };
+  }, [scriptReady]);
+  useEffect(() => {
+    if (!scriptReady || !widgetContainerRef.current) return;
+    const el = widgetContainerRef.current.querySelector("elevenlabs-convai");
+    if (el) widgetRef.current = el as HTMLElement;
+  }, [scriptReady]);
+
+  const handleStart = async () => {
+    if (!id) return;
+    try {
+      setSessionError(null);
+      await api.startSession(id);
+      setCallActive(true);
+      requestAnimationFrame(() => {
+        setTimeout(() => triggerWidgetCall(), 100);
+      });
+    } catch (error: any) {
+      setSessionError(error?.message ?? "Failed to start session");
+    }
+  };
+
+  const handleEnd = async () => {
+    if (!id) return;
+    try {
+      setEnding(true);
+      let finalConversationId = conversationId;
+
+      // If no conversation ID from events, try to get latest from API
+      if (!finalConversationId) {
+        try {
+          const response = await fetch(`/api/elevenlabs/latest-conversation`);
+          if (response.ok) {
+            const data = await response.json();
+            if (data.conversation_id) {
+              finalConversationId = data.conversation_id;
+              setConversationId(finalConversationId);
+            }
+          }
+        } catch (apiError) {
+          console.warn('Failed to get latest conversation from API:', apiError);
+        }
+      }
+
+      if (!finalConversationId) {
+        setSessionError("The call never started successfully, so we can't finish this interview. Please start the call, speak, then hang up to process the transcript.");
         return;
       }
 
-      try {
-        setSessionLoading(true);
-        setSessionError(null);
-
-        await api.startSession(id);
-        const sessionData = await api.getSession(id);
-
-        if (active) {
-          setEmployeeName(sessionData?.employeeName || "Employee");
-          setEmployeeRole(sessionData?.employeeRole || "");
-          setDepartment(sessionData?.department || "");
-          setSessionStarted(true);
-        }
-      } catch (error: any) {
-        if (!active) return;
-        setSessionError(error?.message || "Failed to initialize interview session");
-      } finally {
-        if (active) setSessionLoading(false);
-      }
-    }
-
-    initializeSession();
-    return () => { active = false; };
-  }, [id]);
-
-  // Elapsed time timer
-  useEffect(() => {
-    if (!sessionStarted) return;
-    const interval = setInterval(() => {
-      setElapsedSeconds((prev) => prev + 1);
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [sessionStarted]);
-
-  const handleEndAndProcess = async () => {
-    if (!id) return;
-
-    try {
-      setEnding(true);
-
+      triggerWidgetHangup();
+      setCallActive(false);
+      await new Promise((r) => setTimeout(r, 800));
       await api.endSession(id, {
         transcript: "",
         duration: formatDuration(elapsedSeconds),
+        elevenlabsConversationId: finalConversationId,
       });
-
-      navigate(`/app/sessions/${id}/processing`);
+      setEndSent(true);
+      setShowThankYou(true);
     } catch (error: any) {
-      setSessionError(error?.message || "Failed to end and process interview session");
+      setSessionError(error?.message ?? "Failed to end session");
     } finally {
       setEnding(false);
     }
   };
 
-  if (sessionLoading) {
+  if (!scriptReady) {
     return (
       <div className="h-[calc(100vh-3.5rem)] flex items-center justify-center">
         <div className="text-sm text-muted-foreground flex items-center gap-2">
-          <Loader2 className="w-4 h-4 animate-spin" /> Initializing interview session...
+          <Loader2 className="w-4 h-4 animate-spin" /> Loading interview widget...
         </div>
       </div>
     );
@@ -160,66 +259,91 @@ export default function Interview() {
 
   return (
     <div className="h-[calc(100vh-3.5rem)] flex flex-col">
-      {/* Top Bar */}
       <div className="border-b border-border px-6 py-3 flex items-center justify-between bg-white shrink-0">
-        <div>
-          <div className="flex items-center gap-2">
-            <Badge variant="info" className="text-xs">Live Session</Badge>
-            <span className="text-xs text-muted-foreground uppercase tracking-wider font-medium">
-              {employeeName} — {employeeRole || "Offboarding Interview"}
-            </span>
-          </div>
+        <div className="flex items-center gap-2">
+          <Badge variant="info" className="text-xs">Interview</Badge>
+          {callActive && <Badge variant="secondary" className="text-xs">Live</Badge>}
+          <span className="text-xs text-muted-foreground">Conversation: {conversationId || "—"}</span>
         </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
             <Clock className="w-4 h-4" />
             <span>{formatElapsed(elapsedSeconds)}</span>
           </div>
-          <button
-            className="h-8 px-3 bg-red-600 text-white text-[13px] font-medium flex items-center gap-1.5 hover:bg-red-700 transition-colors disabled:opacity-60"
-            onClick={handleEndAndProcess}
-            disabled={ending}
-          >
-            {ending
-              ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Ending...</>
-              : <><Square className="w-3.5 h-3.5" /> End & Process</>}
-          </button>
+          <Link to={`/app/sessions/${id}`} className="text-[13px] font-medium text-muted-foreground hover:text-foreground">Back to Session</Link>
         </div>
       </div>
 
       <div className="flex-1 flex overflow-hidden">
-        {/* Main Interview Area — ElevenLabs Widget */}
-        <div className="flex-1 overflow-y-auto p-6 flex flex-col items-center justify-center bg-foreground/[0.01]">
-          <div ref={widgetContainerRef} className="w-full max-w-2xl">
-            <elevenlabs-convai agent-id={WIDGET_AGENT_ID} variant="full" />
+        <div className="flex-1 flex items-center justify-center gap-10 p-8 overflow-y-auto">
+          <div
+            ref={widgetContainerRef}
+            className="relative w-full max-w-3xl min-h-[420px] flex items-center justify-center bg-white border border-border rounded-lg overflow-hidden z-0 shrink-0"
+          >
+            <elevenlabs-convai agent-id={ELEVENLABS_AGENT_ID} variant="expanded" />
           </div>
-        </div>
-
-        {/* Sidebar: Session Info */}
-        <div className="w-72 border-l border-border bg-white overflow-y-auto shrink-0">
-          <div className="p-4 border-b border-border">
-            <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Session Runtime</h3>
-            <p className="text-xs text-muted-foreground mt-1">Live session details</p>
-          </div>
-          <div className="p-4 space-y-3 text-[13px]">
-            <div className="flex justify-between"><span className="text-muted-foreground">Interviewee</span><span className="font-medium">{employeeName}</span></div>
-            {employeeRole && <div className="flex justify-between"><span className="text-muted-foreground">Role</span><span className="font-medium">{employeeRole}</span></div>}
-            {department && <div className="flex justify-between"><span className="text-muted-foreground">Department</span><span className="font-medium">{department}</span></div>}
-            <div className="flex justify-between"><span className="text-muted-foreground">Elapsed</span><span className="font-medium">{formatElapsed(elapsedSeconds)}</span></div>
-          </div>
-          <div className="p-4 border-t border-border">
-            <div className="p-3 bg-foreground/[0.03] border border-dashed border-border">
-              <div className="flex items-start gap-2">
-                <AlertCircle className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
-                <p className="text-xs text-muted-foreground leading-snug">
-                  The transcript is automatically fetched from ElevenLabs when you end the session. Click <strong>End &amp; Process</strong> to trigger AI report generation.
-                </p>
-              </div>
-            </div>
-            <Link to={`/app/sessions/${id}`} className="w-full mt-3 h-8 border border-border text-[13px] font-medium flex items-center justify-center hover:bg-foreground/[0.04] transition-colors">Back to Session</Link>
+          <div className="flex flex-col items-center justify-center gap-4 shrink-0">
+            <button
+              type="button"
+              onClick={callActive ? handleEnd : handleStart}
+              disabled={ending}
+              className={[
+                "w-28 h-28 rounded-full flex items-center justify-center text-base font-semibold shadow-lg transition-all hover:scale-105 active:scale-95 disabled:opacity-70 disabled:pointer-events-none",
+                ending
+                  ? "bg-muted text-foreground"
+                  : callActive
+                    ? "bg-red-600 text-white hover:bg-red-700"
+                    : "bg-primary text-primary-foreground hover:bg-primary/90",
+              ].join(" ")}
+            >
+              {ending ? (
+                <Loader2 className="w-8 h-8 animate-spin" />
+              ) : callActive ? (
+                "End"
+              ) : (
+                "Start"
+              )}
+            </button>
+            <p className="text-xs text-muted-foreground text-center max-w-[140px]">
+              {callActive ? "Click to hang up and finish." : "Click to start the call."}
+            </p>
           </div>
         </div>
       </div>
+
+      {showThankYou && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="w-full max-w-md bg-white border border-border rounded-lg p-6 space-y-4 shadow-lg">
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary" className="text-xs">
+                Interview complete
+              </Badge>
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold">Thanks for sharing your knowledge</h2>
+              <p className="text-[13px] text-muted-foreground mt-2 leading-relaxed">
+                We&apos;re processing the conversation transcript. Next, you&apos;ll be able to review and refine it before running
+                any further processing.
+              </p>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={() => setShowThankYou(false)}>
+                Stay on interview
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => {
+                  if (id) {
+                    navigate(`/app/sessions/${id}/review`);
+                  }
+                }}
+              >
+                Go to transcript review
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

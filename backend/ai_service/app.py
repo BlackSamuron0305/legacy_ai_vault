@@ -106,6 +106,39 @@ def start_session():
         logging.exception("Failed to generate ElevenLabs signed URL")
         return jsonify({"error": str(e)}), 500
 
+@app.route('/api/elevenlabs/latest-conversation', methods=['GET'])
+def get_latest_conversation():
+    """
+    Get the most recent conversation ID for the configured agent.
+    Used as fallback when frontend events fail to capture conversation ID.
+    """
+    if not elevenlabs_service:
+        return jsonify({"error": "ElevenLabs service not configured"}), 503
+    
+    try:
+        agent_id = elevenlabs_service.get_agent_id()
+        if not agent_id:
+            return jsonify({"error": "No agent configured"}), 404
+            
+        # Get conversations for this agent
+        conversations = elevenlabs_service.client.get_conversations_for_agent(agent_id)
+        if conversations and len(conversations) > 0:
+            # Return the most recent conversation
+            latest = conversations[0]
+            return jsonify({
+                "conversation_id": latest.get("conversation_id"),
+                "status": latest.get("status"),
+                "call_successful": latest.get("call_successful"),
+                "duration": latest.get("call_duration_secs"),
+                "message_count": latest.get("message_count")
+            }), 200
+        else:
+            return jsonify({"error": "No conversations found"}), 404
+            
+    except Exception as e:
+        logging.exception("Failed to get latest conversation")
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/api/process-transcript', methods=['POST'])
 def process_transcript():
     """
@@ -132,40 +165,42 @@ def process_transcript():
              logging.warning("process-transcript with conversation_id but ElevenLabs service unavailable")
              return jsonify({"error": "ElevenLabs service not configured"}), 503
         try:
-            import time
-            max_attempts = 5
-            wait_seconds = 5
-
-            for attempt in range(1, max_attempts + 1):
-                transcript_data = elevenlabs_service.get_transcript(conversation_id)
-
-                if isinstance(transcript_data, list) and len(transcript_data) > 0:
-                    formatted_lines = []
-                    for turn in transcript_data:
-                        role = turn.get("role", "unknown").capitalize()
-                        message = turn.get("message") or turn.get("text", "")
-                        if message:
-                            formatted_lines.append(f"{role}: {message}")
-
-                    transcript = "\n".join(formatted_lines)
-                    logging.info(
-                        "Fetched transcript from ElevenLabs conversation_id=%s turns=%s length=%s attempt=%s",
-                        conversation_id, len(transcript_data), len(transcript), attempt
-                    )
-                    break
-
-                if attempt < max_attempts:
-                    logging.info(
-                        "ElevenLabs transcript empty, retrying in %ss (attempt %s/%s) conversation_id=%s",
-                        wait_seconds, attempt, max_attempts, conversation_id
-                    )
-                    time.sleep(wait_seconds)
-                else:
-                    logging.warning(
-                        "ElevenLabs transcript still empty after %s attempts conversation_id=%s",
-                        max_attempts, conversation_id
-                    )
-
+            transcript_data = elevenlabs_service.get_transcript(conversation_id)
+            if isinstance(transcript_data, list):
+                # Build structured segments (speaker, text, timestamp) for storage
+                segments = []
+                for idx, turn in enumerate(transcript_data):
+                    role = turn.get("role", "unknown").lower()
+                    speaker = "ai" if role == "agent" else "user"
+                    # Use "message" field as primary, fallback to "text"
+                    message = turn.get("message") or turn.get("text", "")
+                    if message is None:
+                        message = ""
+                    secs = turn.get("time_in_call_secs")
+                    if secs is not None and isinstance(secs, (int, float)):
+                        m, s = divmod(int(secs), 60)
+                        h, m = divmod(m, 60)
+                        timestamp = f"{h:02d}:{m:02d}:{s:02d}"
+                    else:
+                        timestamp = "--:--:--"
+                    segments.append({"speaker": speaker, "text": str(message), "timestamp": timestamp})
+                transcript_segments_response = segments
+                # Format transcript with roles for processing pipeline
+                formatted_lines = []
+                for turn in transcript_data:
+                    role = turn.get("role", "unknown").capitalize()
+                    message = turn.get("message") or turn.get("text", "")
+                    if message:
+                        formatted_lines.append(f"{role}: {message}")
+                transcript = "\n".join(formatted_lines)
+                logging.info(
+                    "Fetched and formatted transcript from ElevenLabs conversation_id=%s turns=%s length=%s",
+                    conversation_id,
+                    len(transcript_data),
+                    len(transcript)
+                )
+            else:
+                logging.warning(f"Unexpected transcript format: {type(transcript_data)}")
         except Exception as e:
             logging.exception("Failed to retrieve transcript from ElevenLabs conversation_id=%s", conversation_id)
             return jsonify({"error": f"Failed to retrieve transcript: {str(e)}"}), 500

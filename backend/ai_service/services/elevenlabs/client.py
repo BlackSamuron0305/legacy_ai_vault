@@ -1,4 +1,5 @@
 import os
+import time
 import requests
 import logging
 from typing import Dict, Any, List
@@ -98,19 +99,63 @@ class ElevenLabsClient:
             logger.error(f"Failed to get signed URL: {e}")
             raise
 
-    def get_transcript(self, conversation_id: str) -> List[Dict[str, Any]]:
-        """Retrieve transcript for a conversation."""
-        url = f"{self.base_url}/conversations/{conversation_id}"
+    def get_conversations_for_agent(self, agent_id: str, limit: int = 10) -> List[Dict[str, Any]]:
+        """Get recent conversations for a specific agent."""
+        url = f"{self.base_url}/conversations?agent_id={agent_id}&page_size={limit}"
         try:
             response = requests.get(url, headers=self.headers)
             response.raise_for_status()
             data = response.json()
-            # The API returns "transcript" which is an array of objects
-            # [{ "role": "agent", "message": "...", "time_in_call_secs": 0, ... }]
-            return data.get("transcript", [])
+            return data.get("conversations", [])
         except requests.exceptions.RequestException as e:
-            logger.error(f"Failed to get transcript {conversation_id}: {e}")
+            logger.error(f"Failed to get conversations for agent {agent_id}: {e}")
             raise
+
+    def get_transcript(self, conversation_id: str, max_retries: int = 8, initial_delay: float = 3.0) -> List[Dict[str, Any]]:
+        """Retrieve transcript for a conversation, retrying until ElevenLabs finishes processing."""
+        url = f"{self.base_url}/conversations/{conversation_id}"
+        delay = initial_delay
+
+        for attempt in range(1, max_retries + 1):
+            try:
+                response = requests.get(url, headers=self.headers)
+                response.raise_for_status()
+                data = response.json()
+
+                status = data.get("status", "unknown")
+                transcript = data.get("transcript", [])
+
+                if transcript and len(transcript) > 0:
+                    logger.info(
+                        "Got transcript for %s on attempt %d (status=%s, turns=%d)",
+                        conversation_id, attempt, status, len(transcript),
+                    )
+                    return transcript
+
+                if status in ("done", "failed"):
+                    logger.warning(
+                        "Conversation %s status=%s but transcript empty (attempt %d)",
+                        conversation_id, status, attempt,
+                    )
+                    return transcript
+
+                logger.info(
+                    "Conversation %s not ready yet (status=%s, turns=%d). "
+                    "Retrying in %.1fs (attempt %d/%d)",
+                    conversation_id, status, len(transcript), delay, attempt, max_retries,
+                )
+                time.sleep(delay)
+                delay = min(delay * 1.5, 15.0)
+
+            except requests.exceptions.RequestException as e:
+                logger.error("Failed to get transcript %s (attempt %d): %s", conversation_id, attempt, e)
+                if attempt == max_retries:
+                    raise
+                time.sleep(delay)
+                delay = min(delay * 1.5, 15.0)
+
+        logger.warning("Exhausted retries for transcript %s, returning empty", conversation_id)
+        return []
 
     def get_voices(self) -> List[Dict[str, Any]]:
         """Get all available voices."""

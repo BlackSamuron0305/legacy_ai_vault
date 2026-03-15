@@ -8,6 +8,35 @@ import { extractKnowledge } from '../services/extraction.service';
 import { sendToMakeWebhook } from '../services/webhook.service';
 import { getLatestConversationId, getConversationTranscript } from '../services/elevenlabs.service';
 
+type ParsedSegment = { timestamp: string; speaker: 'ai' | 'employee'; text: string };
+
+function parseTranscriptToSegments(transcript: string): ParsedSegment[] {
+    if (!transcript?.trim()) return [];
+    return transcript
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .map((line) => {
+            const match = line.match(/^\[(\d{2}:\d{2}:\d{2})\]\s*(AI|Employee):\s*(.+)$/i);
+            if (match) {
+                return {
+                    timestamp: match[1],
+                    speaker: (match[2].toLowerCase() === 'ai' ? 'ai' : 'employee') as 'ai' | 'employee',
+                    text: match[3],
+                };
+            }
+            const fallback = line.match(/^(Agent|User):\s*(.+)$/i);
+            if (fallback) {
+                return {
+                    timestamp: '--:--:--',
+                    speaker: (fallback[1].toLowerCase() === 'agent' ? 'ai' : 'employee') as 'ai' | 'employee',
+                    text: fallback[2],
+                };
+            }
+            return { timestamp: '--:--:--', speaker: 'employee' as const, text: line };
+        });
+}
+
 const router = Router();
 router.use(requireAuth);
 
@@ -275,6 +304,12 @@ router.post('/:id/end', async (req: AuthRequest, res: Response) => {
                 }
             }
 
+            // Give ElevenLabs time to finish processing the call recording into a transcript
+            if (!resolvedTranscriptText && currentConversationId) {
+                log('Waiting 5s for ElevenLabs to finish processing before fetching transcript', { sessionId: session.id });
+                await new Promise(r => setTimeout(r, 5000));
+            }
+
             const payload = resolvedTranscriptText
                 ? { transcript: resolvedTranscriptText }
                 : { conversation_id: currentConversationId };
@@ -536,6 +571,99 @@ router.put('/:id/transcript/approve', async (req: AuthRequest, res: Response) =>
         res.json(session);
     } catch (error: any) {
         res.status(500).json({ error: error.message });
+    }
+});
+
+// POST /api/sessions/:id/reprocess — re-trigger transcript processing for a session
+router.post('/:id/reprocess', async (req: AuthRequest, res: Response) => {
+    try {
+        const userId = req.userId;
+        if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+        const [session] = await db.select().from(sessions).where(eq(sessions.id, req.params.id));
+        if (!session) return res.status(404).json({ error: 'Session not found' });
+
+        const conversationId = session.elevenlabsConversationId;
+        if (!conversationId) {
+            return res.status(400).json({ error: 'No ElevenLabs conversation ID stored for this session' });
+        }
+
+        log('Reprocessing session transcript', { sessionId: session.id, conversationId });
+
+        await db.update(sessions)
+            .set({ status: 'processing', transcriptStatus: 'pending', reportStatus: 'generating', lastActivity: new Date() })
+            .where(eq(sessions.id, session.id));
+
+        const aiServiceUrl = process.env.AI_SERVICE_URL || 'http://localhost:5000';
+
+        (async () => {
+            try {
+                const aiResponse = await fetch(`${aiServiceUrl}/api/process-transcript`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ conversation_id: conversationId }),
+                });
+
+                if (!aiResponse.ok) {
+                    const errorText = await aiResponse.text();
+                    throw new Error(`AI processing failed: ${errorText || aiResponse.statusText}`);
+                }
+
+                const processed = await aiResponse.json() as {
+                    full_transcript?: string;
+                    report?: string;
+                    transcript_segments?: Array<{ speaker: string; text: string; timestamp: string }>;
+                };
+
+                const resolvedTranscript = processed.full_transcript || '';
+                const report = processed.report || '';
+
+                await db.update(sessions)
+                    .set({
+                        transcript: resolvedTranscript,
+                        summary: report,
+                        status: 'awaiting_review',
+                        transcriptStatus: 'generated',
+                        reportStatus: report ? 'draft' : 'pending',
+                        lastActivity: new Date(),
+                    })
+                    .where(eq(sessions.id, session.id));
+
+                const segmentsFromApi = processed.transcript_segments;
+                const segments = segmentsFromApi?.length
+                    ? segmentsFromApi.map((s, i) => ({
+                        sessionId: session.id,
+                        timestamp: s.timestamp || '--:--:--',
+                        speaker: (s.speaker === 'user' ? 'employee' : 'ai') as 'ai' | 'employee',
+                        text: s.text ?? '',
+                        orderIndex: i,
+                    }))
+                    : parseTranscriptToSegments(resolvedTranscript).map((s, i) => ({
+                        sessionId: session.id,
+                        timestamp: s.timestamp,
+                        speaker: s.speaker,
+                        text: s.text,
+                        orderIndex: i,
+                    }));
+
+                if (segments.length > 0) {
+                    await db.delete(transcriptSegments).where(eq(transcriptSegments.sessionId, session.id));
+                    await db.insert(transcriptSegments).values(segments);
+                }
+
+                log('Reprocess completed', { sessionId: session.id, segmentCount: segments.length, reportLength: report.length });
+            } catch (error: any) {
+                await db.update(sessions)
+                    .set({ status: 'processing_failed', reportStatus: 'pending', lastActivity: new Date() })
+                    .where(eq(sessions.id, session.id));
+                logError('Reprocess async failed', { sessionId: session.id, error: error?.message || error });
+            }
+        })();
+
+        res.json({ status: 'reprocessing', sessionId: session.id });
+    } catch (error: any) {
+        logError('Reprocess route failed', { sessionId: req.params.id, error: error?.message || error });
+        res.status(500).json({ error: error?.message || 'Internal server error' });
     }
 });
 

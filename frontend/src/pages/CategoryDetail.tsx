@@ -3,10 +3,13 @@ import { Link, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/common/StatusBadge";
-import { ArrowLeft, FileText, Users, Server, Link2, MessageSquare, X, Send, Brain } from "lucide-react";
+import { ArrowLeft, FileText, Users, Server, Link2, MessageSquare, X, Send, Brain, Upload, Loader2 } from "lucide-react";
 import { CategoryDetailSkeleton } from "@/components/skeletons";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCategoryDetail, useCategoryChat } from "@/hooks/useApi";
+import { api } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
+import { useQueryClient } from "@tanstack/react-query";
 
 type ChatMessage = { role: 'user' | 'assistant'; content: string };
 
@@ -163,9 +166,35 @@ export default function CategoryDetail() {
   const categoryName = decodeURIComponent(id || '');
   const { data: category, isLoading } = useCategoryDetail(categoryName);
   const [chatOpen, setChatOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const cards = category?.cards || category?.knowledgeCards || [];
   const cardCount = cards.length;
+
+  const handleUpload = async (file: File) => {
+    if (!file || uploading) return;
+    const allowed = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/markdown', 'text/plain'];
+    if (!allowed.includes(file.type)) {
+      toast({ title: 'Invalid file type', description: 'Use PDF, DOCX, Markdown, or plain text.', variant: 'destructive' });
+      return;
+    }
+    setUploading(true);
+    try {
+      await api.uploadKnowledgeDocument(file, categoryName || undefined);
+      toast({ title: 'Uploaded', description: `${file.name} is being processed for this category.` });
+      queryClient.invalidateQueries({ queryKey: ['knowledge', 'category', categoryName] });
+      queryClient.invalidateQueries({ queryKey: ['knowledge', 'categories'] });
+    } catch (e: any) {
+      toast({ title: 'Upload failed', description: e?.message || 'Please try again.', variant: 'destructive' });
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
 
   if (isLoading) {
     return <CategoryDetailSkeleton />;
@@ -225,6 +254,41 @@ export default function CategoryDetail() {
           <p className="text-[13px] text-muted-foreground leading-relaxed font-serif">{category.summary}</p>
         </div>
       )}
+
+      {/* Upload to this category */}
+      <div className="bg-white border border-border p-5">
+        <h2 className="text-[13px] font-semibold uppercase tracking-wide text-muted-foreground mb-2">Upload documents to this category</h2>
+        <p className="text-[13px] text-muted-foreground mb-3">
+          Add PDFs, DOCX, Markdown, or text files. They will be parsed into knowledge blocks and included in this category&apos;s AI assistant.
+        </p>
+        <div
+          className={`border-2 border-dashed p-4 text-center transition-colors ${dragOver ? 'border-foreground/30 bg-foreground/[0.04]' : 'border-border'}`}
+          onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={(e) => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer?.files?.[0]; if (f) handleUpload(f); }}
+        >
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".pdf,.docx,.md,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/markdown,text/plain"
+            className="hidden"
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUpload(f); }}
+          />
+          <Upload className="w-6 h-6 mx-auto text-muted-foreground mb-2" />
+          <p className="text-[13px] text-muted-foreground">Drop a file or click to browse</p>
+          <p className="text-xs text-muted-foreground mt-1">Max 20MB</p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="mt-3"
+            disabled={uploading}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Select file'}
+          </Button>
+        </div>
+      </div>
 
       {/* Knowledge Blocks */}
       <div className="space-y-4">

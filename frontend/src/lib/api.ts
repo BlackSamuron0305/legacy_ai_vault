@@ -169,6 +169,17 @@ class ApiClient {
         return this.request<any[]>(`/sessions/${id}/transcript`);
     }
 
+    async putSessionTranscript(id: string, segments: Array<{ speaker: string; text: string; timestamp?: string }>) {
+        return this.request<any>(`/sessions/${id}/transcript`, {
+            method: 'PUT',
+            body: JSON.stringify({ segments }),
+        });
+    }
+
+    async reprocessSession(id: string) {
+        return this.request<any>(`/sessions/${id}/reprocess`, { method: 'POST' });
+    }
+
     async getSessionTopics(id: string) {
         return this.request<any[]>(`/sessions/${id}/topics`);
     }
@@ -210,6 +221,32 @@ class ApiClient {
             method: 'POST',
             body: JSON.stringify({ query }),
         });
+    }
+
+    async getKnowledgeDocuments() {
+        return this.request<any[]>('/knowledge/documents');
+    }
+
+    async uploadKnowledgeDocument(file: File, category?: string) {
+        const token = this.getToken();
+        const formData = new FormData();
+        formData.append('file', file);
+        if (category) formData.append('category', category);
+
+        const res = await fetch(`${API_URL}/knowledge/documents`, {
+            method: 'POST',
+            headers: {
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            body: formData,
+        });
+
+        if (!res.ok) {
+            const error = await res.json().catch(() => ({ error: res.statusText }));
+            throw new Error(error.error || 'Upload failed');
+        }
+
+        return res.json();
     }
 
     // Reports
