@@ -227,7 +227,7 @@ router.get('/:id/token', async (req: AuthRequest, res: Response) => {
 // POST /api/sessions/:id/end — end interview, trigger processing
 router.post('/:id/end', async (req: AuthRequest, res: Response) => {
     try {
-        const { transcript, duration, elevenlabsConversationId } = req.body;
+        const { transcript, duration, elevenlabsConversationId, agentId: bodyAgentId } = req.body;
 
         log('Ending session and triggering processing', {
             sessionId: req.params.id,
@@ -273,7 +273,7 @@ router.post('/:id/end', async (req: AuthRequest, res: Response) => {
             // Auto-fetch the latest conversation from ElevenLabs for this agent.
             let resolvedTranscriptText = transcript;
             if (!resolvedTranscriptText && !currentConversationId) {
-                const agentId = process.env.ELEVENLABS_AGENT_ID;
+                const agentId = bodyAgentId || process.env.ELEVENLABS_AGENT_ID;
                 if (agentId) {
                     try {
                         log('Widget mode: fetching latest conversation from ElevenLabs', {

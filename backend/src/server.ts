@@ -78,11 +78,11 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/admin', adminRoutes);
 
 // ElevenLabs utility routes
-app.get('/api/elevenlabs/latest-conversation', async (_req, res) => {
+app.get('/api/elevenlabs/latest-conversation', async (req, res) => {
     try {
-        const agentId = process.env.ELEVENLABS_AGENT_ID;
+        const agentId = (req.query.agent_id as string) || process.env.ELEVENLABS_AGENT_ID;
         if (!agentId) {
-            return res.status(503).json({ error: 'ELEVENLABS_AGENT_ID not configured' });
+            return res.status(503).json({ error: 'No agent_id provided and ELEVENLABS_AGENT_ID not configured' });
         }
         const conversationId = await getLatestConversationId(agentId);
         if (!conversationId) {

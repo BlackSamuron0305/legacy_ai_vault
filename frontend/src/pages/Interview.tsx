@@ -225,7 +225,7 @@ export default function Interview() {
       if (!finalConversationId) {
         try {
           const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-          const response = await fetch(`${apiBase.replace(/\/api\/?$/, '')}/api/elevenlabs/latest-conversation`);
+          const response = await fetch(`${apiBase.replace(/\/api\/?$/, '')}/api/elevenlabs/latest-conversation?agent_id=${encodeURIComponent(ELEVENLABS_AGENT_ID)}`);
           if (response.ok) {
             const data = await response.json();
             if (data.conversation_id) {
@@ -245,12 +245,14 @@ export default function Interview() {
           transcript: "",
           duration,
           elevenlabsConversationId: finalConversationId,
+          agentId: ELEVENLABS_AGENT_ID,
         });
       } else {
         // End without conversation ID — backend will try to auto-fetch from ElevenLabs
         await api.endSession(id, {
           transcript: "",
           duration,
+          agentId: ELEVENLABS_AGENT_ID,
         });
       }
 
