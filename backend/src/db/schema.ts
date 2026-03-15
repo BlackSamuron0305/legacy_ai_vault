@@ -74,6 +74,8 @@ export const sessions = pgTable('sessions', {
     transcript: text('transcript'),
     summary: text('summary'),
     elevenlabsConversationId: text('elevenlabs_conversation_id'),
+    reportHtmlPath: text('report_html_path'),
+    reportPdfPath: text('report_pdf_path'),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 });
 
@@ -110,12 +112,36 @@ export const knowledgeCards = pgTable('knowledge_cards', {
     importance: text('importance').default('normal'),
     confidence: real('confidence').default(0),
     embedding: vector('embedding'),
+    documentId: uuid('document_id'),  // references documents.id — added below
+    source: text('source'),           // 'interview' | 'upload'
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 });
 
 export const knowledgeCardsRelations = relations(knowledgeCards, ({ one }) => ({
     employee: one(employees, { fields: [knowledgeCards.employeeId], references: [employees.id] }),
     session: one(sessions, { fields: [knowledgeCards.sessionId], references: [sessions.id] }),
+    document: one(documents, { fields: [knowledgeCards.documentId], references: [documents.id] }),
+}));
+
+// ===== DOCUMENTS (uploaded files) =====
+export const documents = pgTable('documents', {
+    id: uuid('id').defaultRandom().primaryKey(),
+    workspaceId: uuid('workspace_id').references(() => workspaces.id, { onDelete: 'cascade' }).notNull(),
+    uploadedBy: uuid('uploaded_by').references(() => users.id, { onDelete: 'set null' }),
+    filename: text('filename').notNull(),
+    mimeType: text('mime_type').notNull(),
+    sizeBytes: integer('size_bytes').notNull(),
+    storagePath: text('storage_path').notNull(),
+    category: text('category').default('Uploaded'),
+    status: text('status').default('pending'), // pending, processing, ready, error
+    error: text('error'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+});
+
+export const documentsRelations = relations(documents, ({ one, many }) => ({
+    workspace: one(workspaces, { fields: [documents.workspaceId], references: [workspaces.id] }),
+    uploader: one(users, { fields: [documents.uploadedBy], references: [users.id] }),
+    knowledgeCards: many(knowledgeCards),
 }));
 
 // ===== KNOWLEDGE CATEGORIES =====
