@@ -3,6 +3,8 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight, Check } from "lucide-react";
 import { motion } from "framer-motion";
 import { PublicHeader } from "@/components/layout/PublicHeader";
+import AlternativeSolutions from "@/components/shared/AlternativeSolutions";
+import CostSimulation from "@/components/shared/CostSimulation";
 
 const plans = [
   {
@@ -180,6 +182,20 @@ export default function Pricing() {
               </motion.div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* Traditional Approaches — before cost comparison */}
+      <section className="relative z-10 pb-24">
+        <div className="max-w-5xl mx-auto px-6">
+          <AlternativeSolutions />
+        </div>
+      </section>
+
+      {/* Cost Comparison — eckig full-bleed section */}
+      <section className="relative z-10 border-y border-border bg-muted/5">
+        <div className="max-w-5xl mx-auto px-6 py-20">
+          <CostSimulation />
         </div>
       </section>
 

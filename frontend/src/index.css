@@ -176,10 +176,30 @@
 .pricing-card-gradient-4 {
   background: radial-gradient(ellipse at 30% 40%, hsl(82 75% 45% / 0.97) 0%, hsl(160 80% 42% / 0.95) 45%, hsl(195 85% 48% / 0.9) 100%);
 }
+
+/* Bar fill gradients — used for animated comparison bars (no absolute positioning, no inset) */
+.bar-fill-1,
+.bar-fill-2,
+.bar-fill-3 {
+  position: relative;
+  overflow: hidden;
+}
+.bar-fill-1 {
+  background: radial-gradient(ellipse at 20% 50%, hsl(28 95% 60% / 0.97) 0%, hsl(340 80% 58% / 0.95) 45%, hsl(15 90% 52% / 0.9) 100%);
+}
+.bar-fill-2 {
+  background: radial-gradient(ellipse at 70% 50%, hsl(168 80% 40% / 0.97) 0%, hsl(200 75% 50% / 0.95) 40%, hsl(240 70% 58% / 0.9) 100%);
+}
+.bar-fill-3 {
+  background: radial-gradient(ellipse at 50% 50%, hsl(290 70% 58% / 0.97) 0%, hsl(320 75% 55% / 0.95) 40%, hsl(200 80% 52% / 0.9) 100%);
+}
 .pricing-card-gradient-1::after,
 .pricing-card-gradient-2::after,
 .pricing-card-gradient-3::after,
-.pricing-card-gradient-4::after {
+.pricing-card-gradient-4::after,
+.bar-fill-1::after,
+.bar-fill-2::after,
+.bar-fill-3::after {
   content: '';
   position: absolute;
   inset: 0;
