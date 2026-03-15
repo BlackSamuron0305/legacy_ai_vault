@@ -12,6 +12,11 @@ export default function Sessions() {
   const [activeFilter, setActiveFilter] = useState('All');
   const { data: sessions = [], isLoading } = useSessions();
 
+  const getInitials = (name?: string | null) => {
+    if (!name) return 'NA';
+    return name.split(' ').filter(Boolean).map((n) => n[0]).join('').slice(0, 2).toUpperCase();
+  };
+
   if (isLoading) {
     return <SessionsSkeleton />;
   }
@@ -72,8 +77,8 @@ export default function Sessions() {
                       {s.employeeName.split(' ').map(n => n[0]).join('')}
                     </div>
                     <div>
-                      <p className="font-medium text-foreground">{s.employeeName}</p>
-                      <p className="text-xs text-muted-foreground">{s.employeeRole}</p>
+                      <p className="font-medium text-foreground">{s.employeeName || 'No employee selected'}</p>
+                      <p className="text-xs text-muted-foreground">{s.employeeRole || 'Test mode'}</p>
                     </div>
                   </Link>
                 </td>

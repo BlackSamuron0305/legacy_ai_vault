@@ -1,6 +1,7 @@
 import os
 import requests
 import logging
+import time
 from .classification_prompts import SYSTEM_PROMPT_REPORT_CLASSIFICATION, get_classification_prompt
 
 class ClassificationService:

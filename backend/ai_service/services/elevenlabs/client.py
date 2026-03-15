@@ -61,13 +61,16 @@ class ElevenLabsClient:
         """Create a new agent."""
         url = f"{self.base_url}/agents/create"
         try:
+            logger.debug("create_agent payload: %s", payload)
             response = requests.post(url, headers=self.headers, json=payload)
+            if not response.ok:
+                logger.error("Agent create failed status=%s body=%s", response.status_code, response.text)
             response.raise_for_status()
             return response.json().get("agent_id")
         except requests.exceptions.RequestException as e:
             logger.error(f"Failed to create agent: {e}")
-            if e.response:
-                logger.error(f"Response: {e.response.text}")
+            if hasattr(e, 'response') and e.response is not None:
+                logger.error(f"Response body: {e.response.text}")
             raise
 
     def update_agent(self, agent_id: str, payload: Dict[str, Any]) -> str:

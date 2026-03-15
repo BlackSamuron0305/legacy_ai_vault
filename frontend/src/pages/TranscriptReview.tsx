@@ -59,6 +59,10 @@ export default function TranscriptReview() {
   const handleApprove = async () => {
     if (!id) return;
     await approveTranscript.mutateAsync(id);
+    if (session?.summary) {
+      navigate(`/app/sessions/${id}/classification`);
+      return;
+    }
     navigate(`/app/sessions/${id}/processing`);
   };
 

@@ -6,8 +6,8 @@ from services.elevenlabs import ElevenLabsService
 from services.processing import ProcessingService
 from services.classification import ClassificationService
 
-# Load environment variables
-load_dotenv()
+# Load environment from root .env (two levels up from this file)
+load_dotenv(os.path.join(os.path.dirname(__file__), '..', '..', '.env'))
 
 app = Flask(__name__)
 log_level = os.getenv("LOG_LEVEL", "INFO").upper()
@@ -132,27 +132,40 @@ def process_transcript():
              logging.warning("process-transcript with conversation_id but ElevenLabs service unavailable")
              return jsonify({"error": "ElevenLabs service not configured"}), 503
         try:
-            transcript_data = elevenlabs_service.get_transcript(conversation_id)
-            if isinstance(transcript_data, list):
-                # Format transcript with roles for better processing
-                # ElevenLabs API returns 'role' ("user" or "agent") and 'message'
-                formatted_lines = []
-                for turn in transcript_data:
-                    role = turn.get("role", "unknown").capitalize()
-                    message = turn.get("message") or turn.get("text", "")
-                    if message:
-                        formatted_lines.append(f"{role}: {message}")
-                
-                transcript = "\n".join(formatted_lines)
-                logging.info(
-                    "Fetched and formatted transcript from ElevenLabs conversation_id=%s turns=%s length=%s",
-                    conversation_id,
-                    len(transcript_data),
-                    len(transcript)
-                )
-            else:
-                logging.warning(f"Unexpected transcript format: {type(transcript_data)}")
-                
+            import time
+            max_attempts = 5
+            wait_seconds = 5
+
+            for attempt in range(1, max_attempts + 1):
+                transcript_data = elevenlabs_service.get_transcript(conversation_id)
+
+                if isinstance(transcript_data, list) and len(transcript_data) > 0:
+                    formatted_lines = []
+                    for turn in transcript_data:
+                        role = turn.get("role", "unknown").capitalize()
+                        message = turn.get("message") or turn.get("text", "")
+                        if message:
+                            formatted_lines.append(f"{role}: {message}")
+
+                    transcript = "\n".join(formatted_lines)
+                    logging.info(
+                        "Fetched transcript from ElevenLabs conversation_id=%s turns=%s length=%s attempt=%s",
+                        conversation_id, len(transcript_data), len(transcript), attempt
+                    )
+                    break
+
+                if attempt < max_attempts:
+                    logging.info(
+                        "ElevenLabs transcript empty, retrying in %ss (attempt %s/%s) conversation_id=%s",
+                        wait_seconds, attempt, max_attempts, conversation_id
+                    )
+                    time.sleep(wait_seconds)
+                else:
+                    logging.warning(
+                        "ElevenLabs transcript still empty after %s attempts conversation_id=%s",
+                        max_attempts, conversation_id
+                    )
+
         except Exception as e:
             logging.exception("Failed to retrieve transcript from ElevenLabs conversation_id=%s", conversation_id)
             return jsonify({"error": f"Failed to retrieve transcript: {str(e)}"}), 500

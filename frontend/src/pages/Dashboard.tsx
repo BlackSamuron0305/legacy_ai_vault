@@ -19,6 +19,11 @@ export default function Dashboard() {
     return <DashboardSkeleton />;
   }
 
+  const getInitials = (name?: string | null) => {
+    if (!name) return "NA";
+    return name.split(' ').filter(Boolean).map((n) => n[0]).join('').slice(0, 2).toUpperCase();
+  };
+
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-8">
       <div className="flex items-center justify-between">

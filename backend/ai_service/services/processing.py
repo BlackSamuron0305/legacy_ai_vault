@@ -1,6 +1,7 @@
 import requests
 import re
 import logging
+import time
 from services.report_prompts import SYSTEM_PROMPT_CHUNK_ANALYSIS, get_chunk_prompt
 
 class ProcessingService:
@@ -20,9 +21,8 @@ class ProcessingService:
             return ""
 
         # Basic cleaning (regex based)
-        _cleaned_text = re.sub(r'\[.*?\]', '', transcript) # Remove [Music], [Laughter] etc.
-        # Preserve newlines for structure, just clean up extra spaces within lines
-        cleaned_lines = [line.strip() for line in transcript.split('\n') if line.strip()]
+        cleaned_text = re.sub(r'\[.*?\]', '', transcript)
+        cleaned_lines = [line.strip() for line in cleaned_text.split('\n') if line.strip()]
         return '\n'.join(cleaned_lines)
 
     def format_transcript(self, transcript):
@@ -125,7 +125,7 @@ class ProcessingService:
             
         return chunks
 
-    def process_with_model(self, text, model_name=None):
+    def process_with_model(self, text, model_name=None, max_retries=3):
         """
         Processes a single chunk of text.
         Use process_full_transcript for handling long files.
@@ -139,15 +139,19 @@ class ProcessingService:
         user_content = text # The caller should format this with get_chunk_prompt if needed
 
         payload = {
-            "model": model, 
+            "model": model,
             "messages": [
                 {
-                    "role": "user", 
-                    "content": f"{system_content}\n\n{user_content}"
+                    "role": "system",
+                    "content": system_content
+                },
+                {
+                    "role": "user",
+                    "content": user_content
                 }
             ],
-            "max_tokens": 2000, 
-            "temperature": 0.2 
+            "max_tokens": 2000,
+            "temperature": 0.2
         }
         
         url = self.chat_url
@@ -156,23 +160,28 @@ class ProcessingService:
             "Content-Type": "application/json"
         }
 
-        try:
-            logging.info(f"Sending request to Hugging Face Router: {url}")
-            response = requests.post(url, headers=headers, json=payload, timeout=90)
-            response.raise_for_status()
-            
-            result = response.json()
-            if "choices" in result and len(result["choices"]) > 0:
-                  content = result["choices"][0]["message"]["content"]
-                  logging.info("Model response received content_length=%s", len(content) if content else 0)
-                  return content
-            else: 
-                 logging.warning(f"Unexpected response format: {result}")
-                 return ""
+        # Retry logic with exponential backoff
+        for attempt in range(max_retries):
+            try:
+                logging.info(f"Sending request to Hugging Face Router: {url} (attempt {attempt + 1}/{max_retries})")
+                response = requests.post(url, headers=headers, json=payload, timeout=90)
+                response.raise_for_status()
+                
+                result = response.json()
+                if "choices" in result and len(result["choices"]) > 0:
+                     return result["choices"][0]["message"]["content"]
+                else: 
+                     logging.warning(f"Unexpected response format: {result}")
+                     return ""
 
-        except Exception as e:
-            logging.error(f"Error processing chunk: {str(e)}")
-            raise
+            except requests.exceptions.RequestException as e:
+                if attempt == max_retries - 1:
+                    logging.error(f"Failed to process chunk after {max_retries} attempts: {str(e)}")
+                    raise
+                else:
+                    wait_time = 2 ** attempt  # Exponential backoff: 1, 2, 4 seconds
+                    logging.warning(f"Retry {attempt + 1}/{max_retries} for processing API after {wait_time}s: {str(e)}")
+                    time.sleep(wait_time)
 
     def process_full_transcript(self, transcript_text):
         """

@@ -1,17 +1,26 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Mic, Pause, Square, Clock, AlertCircle, Loader2, Volume2 } from "lucide-react";
-import { motion } from "framer-motion";
+import { Clock, AlertCircle, Loader2, Square } from "lucide-react";
 import { api } from "@/lib/api";
-import { useConversation } from "@elevenlabs/react";
 
-type ConversationTurn = {
-  role: "agent" | "user";
-  message: string;
-  timestamp: string;
-};
+const WIDGET_AGENT_ID = "agent_8901kkq04wagefmr6qtbvw8ab0z2";
+const WIDGET_SCRIPT_URL = "https://unpkg.com/@elevenlabs/convai-widget-embed";
+
+declare global {
+  namespace JSX {
+    interface IntrinsicElements {
+      "elevenlabs-convai": React.DetailedHTMLProps<
+        React.HTMLAttributes<HTMLElement> & {
+          "agent-id": string;
+          variant?: string;
+        },
+        HTMLElement
+      >;
+    }
+  }
+}
 
 function formatElapsed(totalSeconds: number): string {
   const hours = Math.floor(totalSeconds / 3600);
@@ -33,69 +42,36 @@ function formatDuration(totalSeconds: number): string {
   return `${minutes}m ${seconds}s`;
 }
 
-function mapFrequenciesToBars(data: Uint8Array | undefined, count = 60): number[] {
-  if (!data || data.length === 0) return Array.from({ length: count }, () => 12);
-
-  const step = Math.max(1, Math.floor(data.length / count));
-  const bars: number[] = [];
-
-  for (let i = 0; i < count; i++) {
-    const start = i * step;
-    const end = Math.min(data.length, start + step);
-    let sum = 0;
-    for (let j = start; j < end; j++) sum += data[j];
-    const avg = end > start ? sum / (end - start) : 0;
-    const scaled = Math.max(8, Math.min(100, (avg / 255) * 100));
-    bars.push(scaled);
-  }
-
-  return bars;
-}
-
 export default function Interview() {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  const [recording, setRecording] = useState(true);
-  const [micMuted, setMicMuted] = useState(false);
   const [sessionLoading, setSessionLoading] = useState(true);
   const [sessionError, setSessionError] = useState<string | null>(null);
-  const [signedUrl, setSignedUrl] = useState<string | null>(null);
-  const [conversationId, setConversationId] = useState<string | null>(null);
-  const [turns, setTurns] = useState<ConversationTurn[]>([]);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [ending, setEnding] = useState(false);
-  const [inputBars, setInputBars] = useState<number[]>(Array.from({ length: 60 }, () => 12));
-  const [outputBars, setOutputBars] = useState<number[]>(Array.from({ length: 60 }, () => 12));
+  const [sessionStarted, setSessionStarted] = useState(false);
+  const [employeeName, setEmployeeName] = useState("Employee");
+  const [employeeRole, setEmployeeRole] = useState("");
+  const [department, setDepartment] = useState("");
+  const widgetContainerRef = useRef<HTMLDivElement>(null);
 
-  const conversation = useConversation({
-    micMuted,
-    onConnect: ({ conversationId: connectedId }) => {
-      setConversationId(connectedId);
-      setRecording(true);
-    },
-    onMessage: ({ role, message }) => {
-      const resolvedRole = role === "agent" ? "agent" : "user";
-      setTurns((prev) => [
-        ...prev,
-        {
-          role: resolvedRole,
-          message,
-          timestamp: new Date().toLocaleTimeString([], { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" }),
-        },
-      ]);
-    },
-    onError: (message) => {
-      setSessionError(message || "Failed to communicate with ElevenLabs conversation service");
-    },
-  });
+  // Load the widget script and create the custom element
+  useEffect(() => {
+    if (!document.querySelector(`script[src="${WIDGET_SCRIPT_URL}"]`)) {
+      const script = document.createElement("script");
+      script.src = WIDGET_SCRIPT_URL;
+      script.async = true;
+      document.body.appendChild(script);
+    }
 
-  const transcriptText = useMemo(() => {
-    return turns
-      .map((t) => `[${t.timestamp}] ${t.role === "agent" ? "AI" : "Employee"}: ${t.message}`)
-      .join("\n");
-  }, [turns]);
+    return () => {
+      const widgets = document.querySelectorAll("elevenlabs-convai");
+      widgets.forEach((w) => w.remove());
+    };
+  }, []);
 
+  // Initialize the session
   useEffect(() => {
     let active = true;
 
@@ -110,73 +86,35 @@ export default function Interview() {
         setSessionLoading(true);
         setSessionError(null);
 
-        // 1) Mark session as in progress
         await api.startSession(id);
+        const sessionData = await api.getSession(id);
 
-        // 2) Fetch signed URL from backend -> AI service -> ElevenLabs
-        const tokenResponse = await api.getSessionToken(id);
-        if (!active) return;
-
-        const signed = tokenResponse.signed_url;
-        setSignedUrl(signed);
-
-        // 3) Start live ElevenLabs conversation from signed URL
-        const liveConversationId = await conversation.startSession({
-          signedUrl: signed,
-          connectionType: "websocket",
-        });
-        if (!active) return;
-
-        setConversationId(liveConversationId);
+        if (active) {
+          setEmployeeName(sessionData?.employeeName || "Employee");
+          setEmployeeRole(sessionData?.employeeRole || "");
+          setDepartment(sessionData?.department || "");
+          setSessionStarted(true);
+        }
       } catch (error: any) {
         if (!active) return;
         setSessionError(error?.message || "Failed to initialize interview session");
       } finally {
-        if (!active) return;
-        setSessionLoading(false);
+        if (active) setSessionLoading(false);
       }
     }
 
     initializeSession();
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, [id]);
 
+  // Elapsed time timer
   useEffect(() => {
-    if (conversation.status !== "connected") return;
-
-    const timer = window.setInterval(() => {
+    if (!sessionStarted) return;
+    const interval = setInterval(() => {
       setElapsedSeconds((prev) => prev + 1);
     }, 1000);
-
-    return () => {
-      window.clearInterval(timer);
-    };
-  }, [conversation.status]);
-
-  useEffect(() => {
-    if (conversation.status !== "connected") return;
-
-    let frameId = 0;
-    const renderWaveform = () => {
-      const input = conversation.getInputByteFrequencyData();
-      const output = conversation.getOutputByteFrequencyData();
-      setInputBars(mapFrequenciesToBars(input));
-      setOutputBars(mapFrequenciesToBars(output));
-      frameId = window.requestAnimationFrame(renderWaveform);
-    };
-
-    frameId = window.requestAnimationFrame(renderWaveform);
-    return () => {
-      window.cancelAnimationFrame(frameId);
-    };
-  }, [conversation.status]);
-
-  const handleToggleRecording = () => {
-    setMicMuted((prev) => !prev);
-    setRecording((prev) => !prev);
-  };
+    return () => clearInterval(interval);
+  }, [sessionStarted]);
 
   const handleEndAndProcess = async () => {
     if (!id) return;
@@ -184,14 +122,9 @@ export default function Interview() {
     try {
       setEnding(true);
 
-      if (conversation.status === "connected" || conversation.status === "connecting") {
-        await conversation.endSession();
-      }
-
       await api.endSession(id, {
-        transcript: transcriptText,
+        transcript: "",
         duration: formatDuration(elapsedSeconds),
-        elevenlabsConversationId: conversationId || conversation.getId(),
       });
 
       navigate(`/app/sessions/${id}/processing`);
@@ -205,7 +138,9 @@ export default function Interview() {
   if (sessionLoading) {
     return (
       <div className="h-[calc(100vh-3.5rem)] flex items-center justify-center">
-        <div className="text-sm text-muted-foreground flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Initializing interview session...</div>
+        <div className="text-sm text-muted-foreground flex items-center gap-2">
+          <Loader2 className="w-4 h-4 animate-spin" /> Initializing interview session...
+        </div>
       </div>
     );
   }
@@ -230,9 +165,10 @@ export default function Interview() {
         <div>
           <div className="flex items-center gap-2">
             <Badge variant="info" className="text-xs">Live Session</Badge>
-            {signedUrl ? <Badge variant="secondary" className="text-xs">ElevenLabs Auth Ready</Badge> : null}
-            <Badge variant="outline" className="text-xs">{conversation.status}</Badge>
-            <span className="text-xs text-muted-foreground uppercase tracking-wider font-medium">Engineering Lead Offboarding</span>
+            <Badge variant="secondary" className="text-xs">Voice Widget</Badge>
+            <span className="text-xs text-muted-foreground uppercase tracking-wider font-medium">
+              {employeeName} — {employeeRole || "Offboarding Interview"}
+            </span>
           </div>
           <p className="text-[13px] text-muted-foreground mt-0.5">Conversation: {conversationId || "pending"}</p>
         </div>
@@ -360,11 +296,13 @@ export default function Interview() {
         <div className="w-72 border-l border-border bg-white overflow-y-auto shrink-0">
           <div className="p-4 border-b border-border">
             <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Session Runtime</h3>
-            <p className="text-xs text-muted-foreground mt-1">Live voice state and completion details</p>
+            <p className="text-xs text-muted-foreground mt-1">Live session details</p>
           </div>
           <div className="p-4 space-y-3 text-[13px]">
+            <div className="flex justify-between"><span className="text-muted-foreground">Interviewee</span><span className="font-medium">{employeeName}</span></div>
+            {employeeRole && <div className="flex justify-between"><span className="text-muted-foreground">Role</span><span className="font-medium">{employeeRole}</span></div>}
+            {department && <div className="flex justify-between"><span className="text-muted-foreground">Department</span><span className="font-medium">{department}</span></div>}
             <div className="flex justify-between"><span className="text-muted-foreground">Status</span><span className="font-medium">{conversation.status}</span></div>
-            <div className="flex justify-between"><span className="text-muted-foreground">Mode</span><span className="font-medium">{conversation.isSpeaking ? 'speaking' : 'listening'}</span></div>
             <div className="flex justify-between"><span className="text-muted-foreground">Elapsed</span><span className="font-medium">{formatElapsed(elapsedSeconds)}</span></div>
             <div className="flex justify-between"><span className="text-muted-foreground">Messages</span><span className="font-medium">{turns.length}</span></div>
           </div>
@@ -373,13 +311,18 @@ export default function Interview() {
               <div className="flex items-start gap-2">
                 <AlertCircle className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
                 <p className="text-xs text-muted-foreground leading-snug">
-                  On "End & Process", the app posts to the backend end-session endpoint, which triggers Python transcript/report processing and moves you to the processing screen.
+                  The transcript is automatically fetched from ElevenLabs when you end the session. Click <strong>End &amp; Process</strong> to trigger AI report generation.
                 </p>
               </div>
             </div>
             <Link to={`/app/sessions/${id}`} className="w-full mt-3 h-8 border border-border text-[13px] font-medium flex items-center justify-center hover:bg-foreground/[0.04] transition-colors">Back to Session</Link>
           </div>
         </div>
+      </div>
+
+      {/* ElevenLabs Conversational AI Widget */}
+      <div ref={widgetContainerRef}>
+        <elevenlabs-convai agent-id={WIDGET_AGENT_ID} variant="full" />
       </div>
     </div>
   );

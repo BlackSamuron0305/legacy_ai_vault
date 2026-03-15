@@ -4,3 +4,7 @@ dist/
 .DS_Store
 *.log
 drizzle/
+.pyc
+__pycache__/
+.vscode/
+.idea/

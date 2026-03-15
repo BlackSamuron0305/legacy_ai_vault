@@ -4,6 +4,9 @@ import { sessions, employees, users, transcriptSegments, knowledgeCards, activit
 import { eq, and, desc } from 'drizzle-orm';
 import { AuthRequest, requireAuth } from '../middleware/auth';
 import { log, logDebug, logError, logWarn } from '../utils/logger';
+import { extractKnowledge } from '../services/extraction.service';
+import { sendToMakeWebhook } from '../services/webhook.service';
+import { getLatestConversationId, getConversationTranscript } from '../services/elevenlabs.service';
 
 const router = Router();
 router.use(requireAuth);
@@ -52,17 +55,22 @@ router.post('/', async (req: AuthRequest, res: Response) => {
             status: 'scheduled',
         }).returning();
 
-        // Update employee status
-        await db.update(employees)
-            .set({ sessionStatus: 'scheduled' })
-            .where(eq(employees.id, employeeId));
+        // TEMP TEST MODE: allow creating sessions without selecting an employee.
+        // Roll back before committing production behavior.
+        let employeeName = 'No employee selected (test mode)';
+        if (employeeId) {
+            await db.update(employees)
+                .set({ sessionStatus: 'scheduled' })
+                .where(eq(employees.id, employeeId));
 
-        // Activity
-        const [emp] = await db.select().from(employees).where(eq(employees.id, employeeId));
+            const [emp] = await db.select().from(employees).where(eq(employees.id, employeeId));
+            employeeName = emp?.name || 'Employee';
+        }
+
         await db.insert(activities).values({
             workspaceId: user.workspaceId,
             type: 'session_scheduled',
-            message: `Session scheduled with ${emp?.name || 'Employee'}`,
+            message: `Session scheduled with ${employeeName}`,
         });
 
         res.status(201).json(session);
@@ -212,17 +220,12 @@ router.post('/:id/end', async (req: AuthRequest, res: Response) => {
             elevenlabsConversationId,
         });
 
-        if (!transcript && !elevenlabsConversationId) {
-            logWarn('End session rejected due to missing transcript/conversation id', { sessionId: req.params.id });
-            return res.status(400).json({ error: 'Missing transcript or elevenlabsConversationId' });
-        }
-
         const [session] = await db.update(sessions)
             .set({
                 status: 'processing',
-                transcript,
+                transcript: transcript || undefined,
                 duration,
-                elevenlabsConversationId,
+                elevenlabsConversationId: elevenlabsConversationId || undefined,
                 transcriptStatus: transcript ? 'generated' : 'pending',
                 reportStatus: 'generating',
                 lastActivity: new Date(),
@@ -243,98 +246,194 @@ router.post('/:id/end', async (req: AuthRequest, res: Response) => {
 
         // Trigger async AI post-processing using Python service (do not block response)
         const aiServiceUrl = process.env.AI_SERVICE_URL || 'http://localhost:5000';
-        const currentConversationId = elevenlabsConversationId || session.elevenlabsConversationId;
+        let currentConversationId = elevenlabsConversationId || session.elevenlabsConversationId;
 
         (async () => {
-            try {
-                const payload = transcript
-                    ? { transcript }
-                    : { conversation_id: currentConversationId };
+            const MAX_RETRIES = 3;
 
-                const startedAt = Date.now();
-                log('Calling AI service for transcript processing', {
-                    sessionId: session.id,
-                    aiServiceUrl,
-                    payloadType: transcript ? 'transcript' : 'conversation_id',
-                    conversationId: currentConversationId,
-                });
-
-                const aiResponse = await fetch(`${aiServiceUrl}/api/process-transcript`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload),
-                });
-
-                logDebug('AI service transcript processing response', {
-                    sessionId: session.id,
-                    status: aiResponse.status,
-                    durationMs: Date.now() - startedAt,
-                });
-
-                if (!aiResponse.ok) {
-                    const errorText = await aiResponse.text();
-                    throw new Error(`AI processing failed: ${errorText || aiResponse.statusText}`);
+            // Widget mode: no frontend transcript and no conversation ID.
+            // Auto-fetch the latest conversation from ElevenLabs for this agent.
+            let resolvedTranscriptText = transcript;
+            if (!resolvedTranscriptText && !currentConversationId) {
+                const agentId = process.env.ELEVENLABS_AGENT_ID;
+                if (agentId) {
+                    try {
+                        log('Widget mode: fetching latest conversation from ElevenLabs', {
+                            sessionId: session.id,
+                            agentId,
+                        });
+                        const latestId = await getLatestConversationId(agentId);
+                        if (latestId) {
+                            currentConversationId = latestId;
+                            await db.update(sessions)
+                                .set({ elevenlabsConversationId: latestId })
+                                .where(eq(sessions.id, session.id));
+                            log('Resolved conversation ID from ElevenLabs', {
+                                sessionId: session.id,
+                                conversationId: latestId,
+                            });
+                        } else {
+                            logWarn('No conversations found for agent', {
+                                sessionId: session.id,
+                                agentId,
+                            });
+                        }
+                    } catch (fetchError: any) {
+                        logError('Failed to auto-fetch conversation ID (non-fatal)', {
+                            sessionId: session.id,
+                            error: fetchError?.message || fetchError,
+                        });
+                    }
                 }
+            }
 
-                const processed = await aiResponse.json() as {
-                    full_transcript?: string;
-                    report?: string;
-                };
+            const payload = resolvedTranscriptText
+                ? { transcript: resolvedTranscriptText }
+                : { conversation_id: currentConversationId };
 
-                const resolvedTranscript = processed.full_transcript || transcript || '';
-                const report = processed.report || '';
-
-                log('AI processing finished', {
-                    sessionId: session.id,
-                    transcriptLength: resolvedTranscript.length,
-                    reportLength: report.length,
-                });
-
-                await db.update(sessions)
-                    .set({
-                        transcript: resolvedTranscript,
-                        summary: report,
-                        status: 'awaiting_review',
-                        transcriptStatus: 'generated',
-                        reportStatus: report ? 'draft' : 'pending',
-                        lastActivity: new Date(),
-                    })
-                    .where(eq(sessions.id, session.id));
-
-                if (session.employeeId) {
-                    await db.update(employees)
-                        .set({
-                            sessionStatus: 'completed',
-                            transcriptStatus: 'generated',
-                        })
-                        .where(eq(employees.id, session.employeeId));
-                }
-
-                if (session.workspaceId) {
-                    await db.insert(activities).values({
-                        workspaceId: session.workspaceId,
-                        type: 'transcript_ready',
-                        message: 'AI transcript processing completed and report draft generated',
+            for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+                try {
+                    const startedAt = Date.now();
+                    log('Calling AI service for transcript processing', {
+                        sessionId: session.id,
+                        aiServiceUrl,
+                        payloadType: transcript ? 'transcript' : 'conversation_id',
+                        conversationId: currentConversationId,
+                        attempt,
                     });
+
+                    const aiResponse = await fetch(`${aiServiceUrl}/api/process-transcript`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload),
+                    });
+
+                    logDebug('AI service transcript processing response', {
+                        sessionId: session.id,
+                        status: aiResponse.status,
+                        durationMs: Date.now() - startedAt,
+                        attempt,
+                    });
+
+                    if (!aiResponse.ok) {
+                        const errorText = await aiResponse.text();
+                        throw new Error(`AI processing failed: ${errorText || aiResponse.statusText}`);
+                    }
+
+                    const processed = await aiResponse.json() as {
+                        full_transcript?: string;
+                        report?: string;
+                    };
+
+                    const resolvedTranscript = processed.full_transcript || transcript || '';
+                    const report = (processed.report && processed.report.trim())
+                        ? processed.report
+                        : (resolvedTranscript
+                            ? 'Transcript captured successfully. AI report generation returned an empty response; please review transcript and rerun processing if needed.'
+                            : 'No transcript content was captured.');
+
+                    log('AI processing finished', {
+                        sessionId: session.id,
+                        transcriptLength: resolvedTranscript.length,
+                        reportLength: report.length,
+                        attempt,
+                    });
+
+                    await db.update(sessions)
+                        .set({
+                            transcript: resolvedTranscript,
+                            summary: report,
+                            status: 'awaiting_review',
+                            transcriptStatus: 'generated',
+                            reportStatus: report ? 'draft' : 'pending',
+                            lastActivity: new Date(),
+                        })
+                        .where(eq(sessions.id, session.id));
+
+                    if (session.employeeId) {
+                        await db.update(employees)
+                            .set({
+                                sessionStatus: 'completed',
+                                transcriptStatus: 'generated',
+                            })
+                            .where(eq(employees.id, session.employeeId));
+                    }
+
+                    if (session.workspaceId) {
+                        await db.insert(activities).values({
+                            workspaceId: session.workspaceId,
+                            type: 'transcript_ready',
+                            message: 'AI transcript processing completed and report draft generated',
+                        });
+                    }
+
+                    if (resolvedTranscript && session.employeeId) {
+                        try {
+                            await extractKnowledge(session.id, session.employeeId, resolvedTranscript);
+                            log('Knowledge extraction completed', { sessionId: session.id });
+                        } catch (extractionError: any) {
+                            logError('Knowledge extraction failed (non-fatal)', {
+                                sessionId: session.id,
+                                error: extractionError?.message || extractionError,
+                            });
+                        }
+                    }
+
+                    if (report && process.env.MAKE_WEBHOOK_URL) {
+                        try {
+                            await sendToMakeWebhook({
+                                sessionId: session.id,
+                                employeeId: session.employeeId,
+                                report,
+                                transcript: resolvedTranscript,
+                                generatedAt: new Date().toISOString(),
+                            });
+                            log('Make webhook sent', { sessionId: session.id });
+                        } catch (webhookError: any) {
+                            logError('Make webhook failed (non-fatal)', {
+                                sessionId: session.id,
+                                error: webhookError?.message || webhookError,
+                            });
+                        }
+                    }
+
+                    log('Session finalized after AI processing', {
+                        sessionId: session.id,
+                        finalStatus: 'awaiting_review',
+                    });
+
+                    return; // success — exit retry loop
+                } catch (error: any) {
+                    logError('AI processing attempt failed', {
+                        sessionId: session.id,
+                        attempt,
+                        maxRetries: MAX_RETRIES,
+                        error: error?.message || error,
+                    });
+
+                    if (attempt < MAX_RETRIES) {
+                        const delayMs = Math.pow(2, attempt) * 1000; // 2s, 4s, 8s
+                        log('Retrying AI processing', {
+                            sessionId: session.id,
+                            nextAttempt: attempt + 1,
+                            delayMs,
+                        });
+                        await new Promise(resolve => setTimeout(resolve, delayMs));
+                    } else {
+                        await db.update(sessions)
+                            .set({
+                                status: 'awaiting_review',
+                                reportStatus: 'pending',
+                                lastActivity: new Date(),
+                            })
+                            .where(eq(sessions.id, session.id));
+
+                        logError('All AI processing retries exhausted', {
+                            sessionId: session.id,
+                            totalAttempts: MAX_RETRIES,
+                        });
+                    }
                 }
-
-                log('Session finalized after AI processing', {
-                    sessionId: session.id,
-                    finalStatus: 'awaiting_review',
-                });
-            } catch (error: any) {
-                await db.update(sessions)
-                    .set({
-                        status: 'awaiting_review',
-                        reportStatus: 'pending',
-                        lastActivity: new Date(),
-                    })
-                    .where(eq(sessions.id, session.id));
-
-                logError('Async AI processing failed', {
-                    sessionId: session.id,
-                    error: error?.message || error,
-                });
             }
         })();
 
@@ -352,7 +451,57 @@ router.get('/:id/transcript', async (req: AuthRequest, res: Response) => {
             .where(eq(transcriptSegments.sessionId, req.params.id))
             .orderBy(transcriptSegments.orderIndex);
 
-        res.json(segments);
+        if (segments.length > 0) {
+            return res.json(segments);
+        }
+
+        // Fallback: parse transcript text stored on sessions when no normalized segments exist.
+        const [session] = await db.select().from(sessions)
+            .where(eq(sessions.id, req.params.id));
+
+        if (!session?.transcript) {
+            return res.json([]);
+        }
+
+        const lines = session.transcript.split('\n').map(l => l.trim()).filter(Boolean);
+        const parsedSegments = lines.map((line, index) => {
+            const withTimestamp = line.match(/^\[(\d{2}:\d{2}:\d{2})\]\s*(AI|Employee|Agent|User):\s*(.+)$/i);
+            if (withTimestamp) {
+                const speaker = withTimestamp[2].toLowerCase();
+                return {
+                    id: `fallback-${index}`,
+                    sessionId: req.params.id,
+                    timestamp: withTimestamp[1],
+                    speaker: speaker === 'ai' || speaker === 'agent' ? 'ai' : 'employee',
+                    text: withTimestamp[3],
+                    orderIndex: index,
+                };
+            }
+
+            const withoutTimestamp = line.match(/^(AI|Employee|Agent|User):\s*(.+)$/i);
+            if (withoutTimestamp) {
+                const speaker = withoutTimestamp[1].toLowerCase();
+                return {
+                    id: `fallback-${index}`,
+                    sessionId: req.params.id,
+                    timestamp: '--:--:--',
+                    speaker: speaker === 'ai' || speaker === 'agent' ? 'ai' : 'employee',
+                    text: withoutTimestamp[2],
+                    orderIndex: index,
+                };
+            }
+
+            return {
+                id: `fallback-${index}`,
+                sessionId: req.params.id,
+                timestamp: '--:--:--',
+                speaker: 'employee',
+                text: line,
+                orderIndex: index,
+            };
+        });
+
+        res.json(parsedSegments);
     } catch (error: any) {
         res.status(500).json({ error: error.message });
     }
@@ -413,7 +562,7 @@ router.get('/:id/processing', async (req: AuthRequest, res: Response) => {
         const steps = [
             {
                 name: 'Transcript Retrieval',
-                status: session.transcriptStatus === 'generated' ? 'completed' : (session.status === 'processing' ? 'in_progress' : 'pending'),
+                status: (session.transcriptStatus === 'generated' || session.transcriptStatus === 'approved') ? 'completed' : (session.status === 'processing' ? 'in_progress' : 'pending'),
             },
             {
                 name: 'Chunked AI Processing',
@@ -435,6 +584,61 @@ router.get('/:id/processing', async (req: AuthRequest, res: Response) => {
         });
     } catch (error: any) {
         res.status(500).json({ error: error.message });
+    }
+});
+
+// GET /api/sessions/:id/classification — classify the generated report via AI service
+router.get('/:id/classification', async (req: AuthRequest, res: Response) => {
+    try {
+        const [sessionRow] = await db.select({
+            session: sessions,
+            employeeRole: employees.role,
+            employeeDepartment: employees.department,
+        })
+            .from(sessions)
+            .leftJoin(employees, eq(sessions.employeeId, employees.id))
+            .where(eq(sessions.id, req.params.id));
+
+        if (!sessionRow) {
+            return res.status(404).json({ error: 'Session not found' });
+        }
+
+        const report = sessionRow.session.summary || sessionRow.session.transcript;
+        if (!report) {
+            return res.status(400).json({ error: 'No report or transcript available for classification' });
+        }
+
+        const employeeContext = `${sessionRow.employeeRole || 'Unknown role'} in ${sessionRow.employeeDepartment || 'Unknown department'} department`;
+        const aiServiceUrl = process.env.AI_SERVICE_URL || 'http://localhost:5000';
+
+        const response = await fetch(`${aiServiceUrl}/api/classify-report`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                report,
+                employee_context: employeeContext,
+            }),
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            return res.status(502).json({ error: `Classification failed: ${errorText || response.statusText}` });
+        }
+
+        const classification = await response.json();
+
+        await db.update(sessions)
+            .set({
+                status: 'finalized',
+                reportStatus: 'finalized',
+                lastActivity: new Date(),
+            })
+            .where(eq(sessions.id, req.params.id));
+
+        return res.json(classification);
+    } catch (error: any) {
+        logError('Session classification route failed', { sessionId: req.params.id, error: error?.message || error });
+        return res.status(500).json({ error: error.message });
     }
 });
 

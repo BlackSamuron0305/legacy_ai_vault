@@ -73,7 +73,7 @@ class ApiClient {
     }
 
     async logout() {
-        await this.request('/auth/logout', { method: 'POST' }).catch(() => {});
+        await this.request('/auth/logout', { method: 'POST' }).catch(() => { });
         this.setToken(null);
     }
 
@@ -139,10 +139,10 @@ class ApiClient {
         return this.request<any>(`/sessions/${id}`);
     }
 
-    async createSession(employeeId: string) {
+    async createSession(employeeId?: string | null) {
         return this.request<any>('/sessions', {
             method: 'POST',
-            body: JSON.stringify({ employeeId }),
+            body: JSON.stringify(employeeId ? { employeeId } : {}),
         });
     }
 
@@ -152,6 +152,10 @@ class ApiClient {
 
     async getSessionToken(id: string) {
         return this.request<{ signed_url: string }>(`/sessions/${id}/token`);
+    }
+
+    async getSessionClassification(id: string) {
+        return this.request<any>(`/sessions/${id}/classification`);
     }
 
     async endSession(id: string, data: { transcript: string; duration: string; elevenlabsConversationId?: string }) {

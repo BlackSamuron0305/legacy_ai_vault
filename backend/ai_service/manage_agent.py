@@ -5,8 +5,8 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from services.elevenlabs.client import ElevenLabsClient
-from services.elevenlabs.prompts import SYSTEM_PROMPT, FIRST_MESSAGE
 from services.elevenlabs import config
+from services.elevenlabs.agent_config import build_agent_config
 
 def create_or_update_agent():
     api_key = os.getenv("ELEVENLABS_API_KEY")
@@ -27,27 +27,13 @@ def create_or_update_agent():
             existing_agent = agent
             break
     
-    # Construct the payload
-    # Note: API structure for 'create_agent' v1/convai/agents/create might differ slightly from get
-    # We construct based on known documentation patterns for ConvAI
-    agent_payload = {
-        "name": config.AGENT_NAME,
-        "description": config.AGENT_DESCRIPTION,
-        "conversation_config": {
-            "first_message": FIRST_MESSAGE,
-            "system_prompt": SYSTEM_PROMPT,
-        },
-        "platform_settings": {
-            "voice": {
-                "voice_id": config.DEFAULT_VOICE_ID
-            },
-            "model_id": config.DEFAULT_MODEL_ID,
-            "privacy": {
-                "record_voice": True,
-                "retention_days": 30
-            }
-        }
-    }
+    # Construct payload from the shared builder so runtime and management stay in sync.
+    agent_payload = build_agent_config(
+        voice_id=config.DEFAULT_VOICE_ID,
+        model_id=config.DEFAULT_MODEL_ID,
+        name=config.AGENT_NAME,
+        description=config.AGENT_DESCRIPTION,
+    )
 
     if existing_agent:
         agent_id = existing_agent["agent_id"]

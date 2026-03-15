@@ -17,8 +17,12 @@ export default function NewSession() {
   const navigate = useNavigate();
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
 
+  const getInitials = (name?: string | null) => {
+    if (!name) return 'NA';
+    return name.split(' ').filter(Boolean).map((n) => n[0]).join('').slice(0, 2).toUpperCase();
+  };
+
   const handleStart = async () => {
-    if (!selectedEmployeeId) return;
     try {
       const session = await createSession.mutateAsync(selectedEmployeeId);
       navigate(`/app/sessions/${session.id}`);

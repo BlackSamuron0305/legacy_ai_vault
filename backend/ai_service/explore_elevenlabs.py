@@ -3,8 +3,8 @@ import json
 from dotenv import load_dotenv
 from services.communication import CommunicationService
 
-# Load environment variables
-load_dotenv()
+# Load environment from root .env (two levels up from this file)
+load_dotenv(os.path.join(os.path.dirname(__file__), '..', '..', '.env'))
 
 def explore_elevenlabs():
     elevenlabs_api_key = os.getenv("ELEVENLABS_API_KEY")
