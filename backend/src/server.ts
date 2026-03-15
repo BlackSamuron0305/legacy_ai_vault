@@ -12,6 +12,7 @@ import chatRoutes from './routes/chat.routes';
 import settingsRoutes from './routes/settings.routes';
 import adminRoutes from './routes/admin.routes';
 import { log, logDebug } from './utils/logger';
+import { getLatestConversationId } from './services/elevenlabs.service';
 
 dotenv.config();
 
@@ -76,32 +77,21 @@ app.use('/api/chat', chatRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/admin', adminRoutes);
 
-// ElevenLabs utility proxy routes (to AI service)
+// ElevenLabs utility routes
 app.get('/api/elevenlabs/latest-conversation', async (_req, res) => {
-    const aiServiceUrl = process.env.AI_SERVICE_URL || 'http://localhost:5000';
     try {
-        const response = await fetch(`${aiServiceUrl}/api/elevenlabs/latest-conversation`);
-        const body = await response.text();
-
-        // Try to parse JSON, but fall back to raw text if needed
-        let json: any;
-        try {
-            json = JSON.parse(body);
-        } catch {
-            json = { error: body || 'Unexpected response from AI service' };
+        const agentId = process.env.ELEVENLABS_AGENT_ID;
+        if (!agentId) {
+            return res.status(503).json({ error: 'ELEVENLABS_AGENT_ID not configured' });
         }
-
-        if (!response.ok) {
-            return res.status(response.status).json(json);
+        const conversationId = await getLatestConversationId(agentId);
+        if (!conversationId) {
+            return res.status(404).json({ error: 'No conversations found' });
         }
-
-        return res.json(json);
+        return res.json({ conversation_id: conversationId });
     } catch (error: any) {
-        log('Proxy /api/elevenlabs/latest-conversation failed', {
-            error: error?.message || error,
-            aiServiceUrl,
-        });
-        return res.status(502).json({ error: 'Failed to reach AI service for latest conversation' });
+        log('GET /api/elevenlabs/latest-conversation failed', { error: error?.message || error });
+        return res.status(500).json({ error: error?.message || 'Failed to fetch latest conversation' });
     }
 });
 
