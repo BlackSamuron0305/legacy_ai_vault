@@ -203,7 +203,7 @@ export default function SessionDetail() {
               <div key={i} className="flex gap-3">
                 <span className="text-xs font-mono text-muted-foreground mt-1 shrink-0 w-14">{seg.timestamp}</span>
                 <div>
-                  <span className="text-xs font-semibold text-muted-foreground">{seg.speaker === 'ai' ? 'LegacyAI' : 'Sarah Jenkins'}</span>
+                  <span className="text-xs font-semibold text-muted-foreground">{seg.speaker === 'ai' ? 'LegacyAI' : (session.employeeName || 'Employee')}</span>
                   <p className="text-[13px] text-foreground mt-0.5 leading-relaxed">{seg.text}</p>
                 </div>
               </div>

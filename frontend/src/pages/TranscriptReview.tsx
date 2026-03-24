@@ -21,7 +21,7 @@ function normalizeSegments(raw: any[]): Segment[] {
     .map((s: any, i: number) => ({
       id: s.id,
       timestamp: s.timestamp != null ? String(s.timestamp) : "--:--:--",
-      speaker: s.speaker === "ai" ? "ai" : "employee",
+      speaker: (s.speaker === "ai" ? "ai" : "employee") as "ai" | "employee",
       text: s.text != null ? String(s.text) : "",
       orderIndex: typeof s.orderIndex === "number" ? s.orderIndex : i,
     }))

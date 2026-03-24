@@ -1,42 +1,24 @@
-import { supabase } from '../db/supabase';
+import * as fs from 'fs/promises';
+import * as path from 'path';
 import { log, logError } from '../utils/logger';
 
-const REPORTS_BUCKET = 'reports';
+const UPLOADS_DIR = process.env.UPLOADS_DIR || path.join(process.cwd(), 'uploads');
+const REPORTS_DIR = path.join(UPLOADS_DIR, 'reports');
 const HTML_PREFIX = 'html';
 const PDF_PREFIX = 'pdf';
 
-export async function ensureReportsBucket(): Promise<void> {
-    const { data: buckets, error: listError } = await supabase.storage.listBuckets();
-    if (listError) {
-        logError('Failed to list storage buckets', listError);
-        throw listError;
-    }
-    if (buckets?.some((b) => b.name === REPORTS_BUCKET)) {
-        return;
-    }
-    const { error: createError } = await supabase.storage.createBucket(REPORTS_BUCKET, {
-        public: false,
-    });
-    if (createError) {
-        logError('Failed to create reports bucket', createError);
-        throw createError;
-    }
-    log('Created storage bucket', { bucket: REPORTS_BUCKET });
+async function ensureDir(dir: string): Promise<void> {
+    await fs.mkdir(dir, { recursive: true });
 }
 
 export async function uploadReportHtml(sessionId: string, htmlContent: string): Promise<string> {
-    await ensureReportsBucket();
-    const path = `${HTML_PREFIX}/${sessionId}.html`;
-    const { error } = await supabase.storage.from(REPORTS_BUCKET).upload(path, htmlContent, {
-        contentType: 'text/html',
-        upsert: true,
-    });
-    if (error) {
-        logError('Failed to upload report HTML', { sessionId, path, error });
-        throw error;
-    }
-    log('Uploaded report HTML', { sessionId, path });
-    return path;
+    const dir = path.join(REPORTS_DIR, HTML_PREFIX);
+    await ensureDir(dir);
+    const filePath = path.join(dir, `${sessionId}.html`);
+    await fs.writeFile(filePath, htmlContent, 'utf-8');
+    const storagePath = `reports/${HTML_PREFIX}/${sessionId}.html`;
+    log('Saved report HTML', { sessionId, storagePath });
+    return storagePath;
 }
 
 export async function generatePdfFromHtml(htmlContent: string): Promise<Buffer> {
@@ -64,18 +46,13 @@ export async function generatePdfFromHtml(htmlContent: string): Promise<Buffer> 
 }
 
 export async function uploadReportPdf(sessionId: string, pdfBuffer: Buffer): Promise<string> {
-    await ensureReportsBucket();
-    const path = `${PDF_PREFIX}/${sessionId}.pdf`;
-    const { error } = await supabase.storage.from(REPORTS_BUCKET).upload(path, pdfBuffer, {
-        contentType: 'application/pdf',
-        upsert: true,
-    });
-    if (error) {
-        logError('Failed to upload report PDF', { sessionId, path, error });
-        throw error;
-    }
-    log('Uploaded report PDF', { sessionId, path });
-    return path;
+    const dir = path.join(REPORTS_DIR, PDF_PREFIX);
+    await ensureDir(dir);
+    const filePath = path.join(dir, `${sessionId}.pdf`);
+    await fs.writeFile(filePath, pdfBuffer);
+    const storagePath = `reports/${PDF_PREFIX}/${sessionId}.pdf`;
+    log('Saved report PDF', { sessionId, storagePath });
+    return storagePath;
 }
 
 export interface ReportStorageResult {
@@ -90,20 +67,12 @@ export async function uploadReportFiles(sessionId: string, htmlContent: string):
     return { reportHtmlPath, reportPdfPath };
 }
 
-const SIGNED_URL_EXPIRY_SECONDS = 3600;
-
-export async function getReportSignedUrls(reportHtmlPath: string, reportPdfPath: string): Promise<{ htmlUrl: string; pdfUrl: string }> {
-    const { data: htmlData, error: htmlError } = await supabase.storage
-        .from(REPORTS_BUCKET)
-        .createSignedUrl(reportHtmlPath, SIGNED_URL_EXPIRY_SECONDS);
-    if (htmlError || !htmlData?.signedUrl) {
-        throw htmlError || new Error('Failed to create signed URL for HTML');
-    }
-    const { data: pdfData, error: pdfError } = await supabase.storage
-        .from(REPORTS_BUCKET)
-        .createSignedUrl(reportPdfPath, SIGNED_URL_EXPIRY_SECONDS);
-    if (pdfError || !pdfData?.signedUrl) {
-        throw pdfError || new Error('Failed to create signed URL for PDF');
-    }
-    return { htmlUrl: htmlData.signedUrl, pdfUrl: pdfData.signedUrl };
+/**
+ * Return direct download URLs for report files (served by Express).
+ */
+export async function getReportDownloadUrls(reportHtmlPath: string, reportPdfPath: string): Promise<{ htmlUrl: string; pdfUrl: string }> {
+    return {
+        htmlUrl: `/api/files/${reportHtmlPath}`,
+        pdfUrl: `/api/files/${reportPdfPath}`,
+    };
 }

@@ -3,6 +3,7 @@ import { db } from '../db/drizzle';
 import { activities, users } from '../db/schema';
 import { eq, desc } from 'drizzle-orm';
 import { AuthRequest, requireAuth } from '../middleware/auth';
+import { logError } from '../utils/logger';
 
 const router = Router();
 router.use(requireAuth);
@@ -34,6 +35,7 @@ router.get('/', async (req: AuthRequest, res: Response) => {
 
         res.json(result);
     } catch (error: any) {
+        logError('Get activity feed failed', error);
         res.status(500).json({ error: error.message });
     }
 });

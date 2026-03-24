@@ -199,17 +199,17 @@ async function mainHealthCheck() {
     configOk = false;
   }
 
-  if (env.SUPABASE_URL) {
-    log.success(`SUPABASE_URL: ${env.SUPABASE_URL}`);
+  if (env.DATABASE_URL) {
+    log.success(`DATABASE_URL: ${maskValue(env.DATABASE_URL)}`);
   } else {
-    log.error('SUPABASE_URL: missing');
+    log.error('DATABASE_URL: missing');
     configOk = false;
   }
 
-  if (env.SUPABASE_SERVICE_KEY) {
-    log.success(`SUPABASE_SERVICE_KEY: ${maskValue(env.SUPABASE_SERVICE_KEY)}`);
+  if (env.JWT_SECRET) {
+    log.success(`JWT_SECRET: ${maskValue(env.JWT_SECRET)}`);
   } else {
-    log.error('SUPABASE_SERVICE_KEY: missing');
+    log.error('JWT_SECRET: missing');
     configOk = false;
   }
 
@@ -235,7 +235,7 @@ async function mainHealthCheck() {
 
   // Check Frontend
   totalChecks++;
-  const frontendResult = await checkService('Frontend', 'http://localhost:3000');
+  const frontendResult = await checkService('Frontend', 'http://localhost:8080');
   if (frontendResult.success) checksPassed++;
   results.push({ ...frontendResult, serviceName: 'Frontend' });
 
@@ -266,19 +266,7 @@ async function mainHealthCheck() {
     results.push({ ...huggingfaceResult, serviceName: 'Hugging Face API' });
   }
 
-  if (env.SUPABASE_URL && env.SUPABASE_SERVICE_KEY) {
-    totalChecks++;
-    const supabaseResult = await checkApiAuth(
-      'Supabase REST',
-      `${env.SUPABASE_URL.replace(/\/$/, '')}/rest/v1/`,
-      {
-        apikey: env.SUPABASE_SERVICE_KEY,
-        'Authorization': `Bearer ${env.SUPABASE_SERVICE_KEY}`
-      }
-    );
-    if (supabaseResult.success) checksPassed++;
-    results.push({ ...supabaseResult, serviceName: 'Supabase REST' });
-  }
+
 
   // Docker services check
   console.log('');
@@ -303,8 +291,8 @@ async function mainHealthCheck() {
 
   console.log('');
   log.info('Service URLs:');
-  console.log('  Frontend: http://localhost:3000');
-  console.log('  Backend:  http://localhost:3001/api');
+  console.log('  Frontend:   http://localhost:8080');
+  console.log('  Backend:    http://localhost:3001/api');
   console.log('  AI Service: http://localhost:5000/api');
   console.log('');
 

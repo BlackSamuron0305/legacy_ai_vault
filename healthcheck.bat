@@ -206,17 +206,17 @@ if defined HUGGINGFACE_API_TOKEN (
     set "config_ok=0"
 )
 
-if defined SUPABASE_URL (
-    call :log_success "SUPABASE_URL: %SUPABASE_URL%"
+if defined DATABASE_URL (
+    call :log_success "DATABASE_URL: configured"
 ) else (
-    call :log_error "SUPABASE_URL: missing"
+    call :log_error "DATABASE_URL: missing"
     set "config_ok=0"
 )
 
-if defined SUPABASE_SERVICE_KEY (
-    call :log_success "SUPABASE_SERVICE_KEY: $(call :mask_value %SUPABASE_SERVICE_KEY%)"
+if defined JWT_SECRET (
+    call :log_success "JWT_SECRET: configured"
 ) else (
-    call :log_error "SUPABASE_SERVICE_KEY: missing"
+    call :log_error "JWT_SECRET: missing"
     set "config_ok=0"
 )
 
@@ -239,7 +239,7 @@ if !result!==0 set /a "checks_passed+=1"
 
 REM Check Frontend
 set /a "total_checks+=1"
-call :check_service "Frontend" "http://localhost:3000"
+call :check_service "Frontend" "http://localhost:8080"
 if !result!==0 set /a "checks_passed+=1"
 
 REM Check external APIs (optional)
@@ -259,12 +259,7 @@ if defined HUGGINGFACE_API_TOKEN (
     if !result!==0 set /a "checks_passed+=1"
 )
 
-if defined SUPABASE_URL if defined SUPABASE_SERVICE_KEY (
-    set /a "total_checks+=1"
-    set "supabase_url=%SUPABASE_URL:/=%"
-    call :check_api_auth "Supabase REST" "%supabase_url%/rest/v1/" "-H \"apikey: %SUPABASE_SERVICE_KEY%\" -H \"Authorization: Bearer %SUPABASE_SERVICE_KEY%\""
-    if !result!==0 set /a "checks_passed+=1"
-)
+
 
 REM Docker services check
 echo.
@@ -288,8 +283,8 @@ if %checks_passed%==%total_checks% (
 
 echo.
 call :log_info "Service URLs:"
-echo   Frontend: http://localhost:3000
-echo   Backend:  http://localhost:3001/api
+echo   Frontend:   http://localhost:8080
+echo   Backend:    http://localhost:3001/api
 echo   AI Service: http://localhost:5000/api
 echo.
 

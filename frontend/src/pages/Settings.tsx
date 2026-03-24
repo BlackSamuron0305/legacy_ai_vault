@@ -122,7 +122,7 @@ export function SettingsAccount() {
       <div className="bg-white border border-border p-6 space-y-4">
         <h2 className="font-semibold text-[13px] uppercase tracking-wide text-muted-foreground">Account</h2>
         <div><label className="text-[13px] font-medium">Email</label><input defaultValue={user?.email || ''} disabled className="mt-1 w-full h-9 px-3 border border-border bg-foreground/[0.03] text-[13px] text-muted-foreground cursor-not-allowed"/></div>
-        <div><label className="text-[13px] font-medium">Password</label><input type="password" defaultValue="••••••••" disabled className="mt-1 w-full h-9 px-3 border border-border bg-foreground/[0.03] text-[13px] text-muted-foreground cursor-not-allowed"/><p className="text-xs text-muted-foreground mt-1">Password is managed via Supabase Auth.</p></div>
+        <div><label className="text-[13px] font-medium">Password</label><input type="password" defaultValue="••••••••" disabled className="mt-1 w-full h-9 px-3 border border-border bg-foreground/[0.03] text-[13px] text-muted-foreground cursor-not-allowed"/><p className="text-xs text-muted-foreground mt-1">Password changes are not currently supported.</p></div>
       </div>
       <div className="bg-white border border-red-200 p-6">
         <h3 className="font-semibold text-[13px] text-red-600">Danger Zone</h3>

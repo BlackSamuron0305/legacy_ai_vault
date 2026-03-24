@@ -1,25 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Clock, ArrowLeft, Mic, Volume2 } from "lucide-react";
+import { Clock, ArrowLeft, Mic, MicOff, Volume2, Loader2 } from "lucide-react";
+import { useConversation } from "@elevenlabs/react";
 
 const WIDGET_AGENT_ID = "agent_8901kkq04wagefmr6qtbvw8ab0z2";
-const WIDGET_SCRIPT_URL = "https://unpkg.com/@elevenlabs/convai-widget-embed";
-
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      "elevenlabs-convai": React.DetailedHTMLProps<
-        React.HTMLAttributes<HTMLElement> & {
-          "agent-id": string;
-          variant?: string;
-        },
-        HTMLElement
-      >;
-    }
-  }
-}
 
 function formatElapsed(totalSeconds: number): string {
   const m = Math.floor(totalSeconds / 60);
@@ -37,32 +23,34 @@ export default function DemoSession() {
   const isOffboarding = scenario === "offboarding";
 
   const [elapsed, setElapsed] = useState(0);
-  const [widgetReady, setWidgetReady] = useState(false);
-  const widgetRef = useRef<HTMLDivElement>(null);
+  const [isSpeaking, setIsSpeaking] = useState(false);
 
-  // Load ElevenLabs widget script
-  useEffect(() => {
-    if (!document.querySelector(`script[src="${WIDGET_SCRIPT_URL}"]`)) {
-      const script = document.createElement("script");
-      script.src = WIDGET_SCRIPT_URL;
-      script.async = true;
-      script.onload = () => setWidgetReady(true);
-      document.body.appendChild(script);
-    } else {
-      setWidgetReady(true);
-    }
+  const conversation = useConversation({
+    onModeChange: ({ mode }) => {
+      setIsSpeaking(mode === "speaking");
+    },
+  });
 
-    return () => {
-      const widgets = document.querySelectorAll("elevenlabs-convai");
-      widgets.forEach((w) => w.remove());
-    };
-  }, []);
+  const callActive = conversation.status === "connected";
 
   // Timer
   useEffect(() => {
+    if (!callActive) return;
     const interval = setInterval(() => setElapsed((p) => p + 1), 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [callActive]);
+
+  const handleStart = async () => {
+    try {
+      await conversation.startSession({ agentId: WIDGET_AGENT_ID } as any);
+    } catch {
+      // User denied mic or connection failed
+    }
+  };
+
+  const handleEnd = async () => {
+    await conversation.endSession();
+  };
 
   return (
     <div className="h-screen flex flex-col bg-background">
@@ -71,7 +59,7 @@ export default function DemoSession() {
         <div className="flex items-center gap-3">
           <Link to="/demo" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
             <ArrowLeft className="w-4 h-4" />
-            Zurück
+            Back
           </Link>
           <div className="w-px h-5 bg-border" />
           <div className="flex items-center gap-2">
@@ -89,13 +77,13 @@ export default function DemoSession() {
             <span>{formatElapsed(elapsed)}</span>
           </div>
           <Button variant="outline" size="sm" asChild>
-            <Link to="/demo">Demo beenden</Link>
+            <Link to="/demo">End Demo</Link>
           </Button>
         </div>
       </div>
 
       <div className="flex-1 flex overflow-hidden">
-        {/* Main — ElevenLabs Widget */}
+        {/* Main Area */}
         <div className="flex-1 overflow-y-auto flex flex-col items-center justify-center bg-foreground/[0.01] p-6">
           {/* Welcome banner */}
           <div className="w-full max-w-2xl mb-6">
@@ -109,28 +97,57 @@ export default function DemoSession() {
                 <div>
                   <h2 className="font-semibold text-foreground text-lg">
                     {isOffboarding
-                      ? `${name}, schade dass du uns verlässt.`
-                      : `Willkommen an Bord, ${name}!`}
+                      ? `${name}, we're sorry to see you go.`
+                      : `Welcome aboard, ${name}!`}
                   </h2>
                   <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
                     {isOffboarding
-                      ? `Der KI-Interviewer möchte dein Wissen als ${role} sichern, bevor du gehst. Er wird dich kurz begrüßen und ein paar Fragen stellen.`
-                      : `Der KI-Interviewer begrüßt dich als neuen ${role} und hilft dir beim Einstieg. Hör einfach zu!`}
+                      ? `The AI interviewer would like to capture your knowledge as ${role} before you leave. It will greet you briefly and ask a few questions.`
+                      : `The AI interviewer will welcome you as a new ${role} and help you get started. Just listen in!`}
                   </p>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Widget area */}
-          <div ref={widgetRef} className="w-full max-w-2xl">
-            {widgetReady ? (
-              <elevenlabs-convai agent-id={WIDGET_AGENT_ID} variant="full" />
-            ) : (
-              <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">
-                <Mic className="w-4 h-4 animate-pulse mr-2" /> KI-Interviewer wird geladen…
-              </div>
-            )}
+          {/* Audio interaction area */}
+          <div className="w-full max-w-2xl flex flex-col items-center gap-6">
+            <div className={[
+              "w-32 h-32 rounded-full flex items-center justify-center transition-all duration-300",
+              callActive
+                ? isSpeaking
+                  ? "bg-primary/10 ring-4 ring-primary/30 animate-pulse"
+                  : "bg-emerald-50 ring-4 ring-emerald-200"
+                : "bg-muted",
+            ].join(" ")}>
+              {callActive ? (
+                <Mic className="w-10 h-10 text-emerald-600" />
+              ) : (
+                <MicOff className="w-10 h-10 text-muted-foreground" />
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={callActive ? handleEnd : handleStart}
+              disabled={conversation.status === "connecting"}
+              className={[
+                "px-6 py-3 rounded-lg text-sm font-semibold transition-all",
+                conversation.status === "connecting"
+                  ? "bg-muted text-foreground"
+                  : callActive
+                    ? "bg-red-600 text-white hover:bg-red-700"
+                    : "bg-primary text-primary-foreground hover:bg-primary/90",
+              ].join(" ")}
+            >
+              {conversation.status === "connecting" ? (
+                <span className="flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Connecting...</span>
+              ) : callActive ? (
+                "End Conversation"
+              ) : (
+                "Start Conversation"
+              )}
+            </button>
           </div>
         </div>
 
@@ -138,7 +155,7 @@ export default function DemoSession() {
         <div className="w-72 border-l border-border bg-white overflow-y-auto shrink-0 hidden md:block">
           <div className="p-4 border-b border-border">
             <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Demo Session</h3>
-            <p className="text-xs text-muted-foreground mt-1">Vereinfachte Version</p>
+            <p className="text-xs text-muted-foreground mt-1">Simplified version</p>
           </div>
           <div className="p-4 space-y-3 text-[13px]">
             <div className="flex justify-between">
@@ -146,19 +163,19 @@ export default function DemoSession() {
               <span className="font-medium">{name}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Rolle</span>
+              <span className="text-muted-foreground">Role</span>
               <span className="font-medium">{role}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Abteilung</span>
+              <span className="text-muted-foreground">Department</span>
               <span className="font-medium">{department}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Szenario</span>
+              <span className="text-muted-foreground">Scenario</span>
               <span className="font-medium">{isOffboarding ? "Offboarding" : "Onboarding"}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">Laufzeit</span>
+              <span className="text-muted-foreground">Duration</span>
               <span className="font-medium">{formatElapsed(elapsed)}</span>
             </div>
           </div>
@@ -166,23 +183,23 @@ export default function DemoSession() {
           <div className="p-4 border-t border-border space-y-3">
             <div className={`p-3 rounded-xl ${isOffboarding ? "bg-red-50" : "bg-emerald-50"}`}>
               <p className="text-xs font-semibold text-foreground mb-1">
-                {isOffboarding ? "Offboarding-Interview" : "Onboarding-Begrüßung"}
+                {isOffboarding ? "Offboarding Interview" : "Onboarding Welcome"}
               </p>
               <p className="text-xs text-muted-foreground leading-relaxed">
                 {isOffboarding
-                  ? "Der Bot begrüßt dich, bedauert deinen Abgang und beginnt mit der Wissenssicherung."
-                  : "Der Bot heißt dich willkommen und gibt dir eine kurze Einführung in deine neue Rolle."}
+                  ? "The bot will greet you, acknowledge your departure and begin the knowledge capture process."
+                  : "The bot will welcome you and give you a brief introduction to your new role."}
               </p>
             </div>
 
             <div className="p-3 bg-foreground/[0.03] border border-dashed border-border rounded-xl">
               <p className="text-xs text-muted-foreground leading-snug">
-                <strong>Demo-Modus:</strong> Dies ist eine vereinfachte Version. In der Vollversion wird das gesamte Gespräch transkribiert und zu strukturiertem Wissen verarbeitet.
+                <strong>Demo mode:</strong> This is a simplified version. In the full version, the entire conversation is transcribed and processed into structured knowledge.
               </p>
             </div>
 
             <Button variant="outline" size="sm" className="w-full" asChild>
-              <Link to="/demo">← Zurück zur Auswahl</Link>
+              <Link to="/demo">&larr; Back to selection</Link>
             </Button>
           </div>
         </div>

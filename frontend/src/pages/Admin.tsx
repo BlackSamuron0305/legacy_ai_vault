@@ -35,9 +35,8 @@ const API_SERVICES = [
   { id: 'openai', name: 'OpenAI', desc: 'GPT models for extraction & summarization' },
   { id: 'elevenlabs', name: 'ElevenLabs', desc: 'Conversational AI voice interviews' },
   { id: 'huggingface', name: 'HuggingFace', desc: 'Embedding models & inference' },
-  { id: 'supabase', name: 'Supabase', desc: 'Database & authentication' },
+  { id: 'postgres', name: 'PostgreSQL', desc: 'Database & vector search (pgvector)' },
   { id: 'anthropic', name: 'Anthropic', desc: 'Claude models for analysis' },
-  { id: 'pinecone', name: 'Pinecone', desc: 'Vector database for RAG' },
 ];
 
 // ===== OWNER VIEW: Company Settings =====

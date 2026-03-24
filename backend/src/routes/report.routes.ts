@@ -3,6 +3,7 @@ import { db } from '../db/drizzle';
 import { reports, employees, sessions, users } from '../db/schema';
 import { eq, desc, isNotNull, and } from 'drizzle-orm';
 import { AuthRequest, requireAuth } from '../middleware/auth';
+import { log, logError } from '../utils/logger';
 
 const router = Router();
 router.use(requireAuth);
@@ -70,6 +71,7 @@ router.get('/', async (req: AuthRequest, res: Response) => {
 
         res.json(all);
     } catch (error: any) {
+        logError('List reports failed', error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -77,13 +79,19 @@ router.get('/', async (req: AuthRequest, res: Response) => {
 // GET /api/reports/:id
 router.get('/:id', async (req: AuthRequest, res: Response) => {
     try {
+        const [user] = await db.select().from(users).where(eq(users.id, req.userId!));
+        if (!user?.workspaceId) return res.status(400).json({ error: 'No workspace' });
+
         const [report] = await db.select({
             report: reports,
             employeeName: employees.name,
         })
             .from(reports)
             .leftJoin(employees, eq(reports.employeeId, employees.id))
-            .where(eq(reports.id, req.params.id));
+            .where(and(
+                eq(reports.id, req.params.id),
+                eq(reports.workspaceId, user.workspaceId)
+            ));
 
         if (!report) return res.status(404).json({ error: 'Report not found' });
 
@@ -92,6 +100,7 @@ router.get('/:id', async (req: AuthRequest, res: Response) => {
             employee: report.employeeName || 'Multiple',
         });
     } catch (error: any) {
+        logError('Get report failed', error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -112,8 +121,10 @@ router.post('/', async (req: AuthRequest, res: Response) => {
             employeeId,
         }).returning();
 
+        log('Report created', { reportId: report.id });
         res.status(201).json(report);
     } catch (error: any) {
+        logError('Create report failed', error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -121,16 +132,24 @@ router.post('/', async (req: AuthRequest, res: Response) => {
 // PUT /api/reports/:id
 router.put('/:id', async (req: AuthRequest, res: Response) => {
     try {
+        const [user] = await db.select().from(users).where(eq(users.id, req.userId!));
+        if (!user?.workspaceId) return res.status(400).json({ error: 'No workspace' });
+
         const { title, content, status, exportStatus } = req.body;
 
         const [updated] = await db.update(reports)
             .set({ title, content, status, exportStatus, lastUpdated: new Date() })
-            .where(eq(reports.id, req.params.id))
+            .where(and(
+                eq(reports.id, req.params.id),
+                eq(reports.workspaceId, user.workspaceId)
+            ))
             .returning();
 
         if (!updated) return res.status(404).json({ error: 'Report not found' });
+        log('Report updated', { reportId: req.params.id });
         res.json(updated);
     } catch (error: any) {
+        logError('Update report failed', error);
         res.status(500).json({ error: error.message });
     }
 });

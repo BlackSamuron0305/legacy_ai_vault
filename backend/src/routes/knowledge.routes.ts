@@ -1,11 +1,13 @@
 import { Router, Response } from 'express';
 import { db } from '../db/drizzle';
 import { knowledgeCards, knowledgeCategories, employees, sessions, users, documents } from '../db/schema';
-import { eq, sql, desc } from 'drizzle-orm';
+import { eq, sql, desc, and } from 'drizzle-orm';
 import { AuthRequest, requireAuth } from '../middleware/auth';
-import { supabase } from '../db/supabase';
 import { createEmbedding } from '../services/embedding.service';
+import { createHfChatCompletion } from '../services/hf.service';
 import { log, logError } from '../utils/logger';
+import * as fs from 'fs/promises';
+import * as path from 'path';
 
 interface MultipartPart {
     name?: string;
@@ -85,6 +87,7 @@ router.get('/categories', async (req: AuthRequest, res: Response) => {
 
         res.json(result);
     } catch (error: any) {
+        logError('Get categories failed', error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -111,6 +114,7 @@ router.get('/cards', async (req: AuthRequest, res: Response) => {
             expertDepartment: r.employeeDepartment,
         })));
     } catch (error: any) {
+        logError('Get knowledge cards failed', error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -137,6 +141,7 @@ router.get('/stats', async (req: AuthRequest, res: Response) => {
             totalSessions: sessionCount?.count || 0,
         });
     } catch (error: any) {
+        logError('Get knowledge stats failed', error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -153,6 +158,7 @@ router.get('/documents', async (req: AuthRequest, res: Response) => {
 
         res.json(docs);
     } catch (error: any) {
+        logError('List documents failed', error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -192,13 +198,11 @@ router.post('/documents', async (req: AuthRequest, res: Response) => {
 
         const storagePath = `documents/${user.workspaceId}/${Date.now()}_${filename}`;
 
-        const { error: uploadError } = await supabase.storage
-            .from('knowledge-docs')
-            .upload(storagePath, fileBuffer, { contentType: mimeType });
-
-        if (uploadError) {
-            log('Supabase storage upload failed, storing metadata only', { error: uploadError.message });
-        }
+        // Save file to local filesystem
+        const uploadsDir = process.env.UPLOADS_DIR || path.join(process.cwd(), 'uploads');
+        const fullPath = path.join(uploadsDir, storagePath);
+        await fs.mkdir(path.dirname(fullPath), { recursive: true });
+        await fs.writeFile(fullPath, fileBuffer);
 
         const [doc] = await db.insert(documents).values({
             workspaceId: user.workspaceId,
@@ -259,8 +263,8 @@ Respond ONLY with valid JSON.`,
                     let embedding: number[] | undefined;
                     try {
                         embedding = await createEmbedding(embeddingText);
-                    } catch {
-                        log('Embedding generation failed for document card, storing without embedding');
+                    } catch (embeddingErr) {
+                        logError('Embedding generation failed for document card, storing without embedding', embeddingErr);
                     }
 
                     await db.insert(knowledgeCards).values({
@@ -293,18 +297,21 @@ Respond ONLY with valid JSON.`,
 // POST /api/knowledge/search — vector search
 router.post('/search', async (req: AuthRequest, res: Response) => {
     try {
+        const [user] = await db.select().from(users).where(eq(users.id, req.userId!));
+        if (!user?.workspaceId) return res.status(400).json({ error: 'No workspace' });
+
         const { query } = req.body;
         const embedding = await createEmbedding(query);
+        const embeddingStr = `[${embedding.join(',')}]`;
 
-        const { data, error } = await supabase.rpc('search_knowledge', {
-            query_embedding: embedding,
-            match_threshold: 0.65,
-            match_count: 10,
-        });
+        const results = await db.execute(sql`
+            SELECT id, topic, content, tags, importance, expert_name, expert_department, interview_date, similarity
+            FROM search_knowledge(${embeddingStr}::vector, ${user.workspaceId}::uuid, 0.65, 10, ${query})
+        `);
 
-        if (error) throw error;
-        res.json(data);
+        res.json(results);
     } catch (error: any) {
+        logError('Knowledge search failed', error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -312,19 +319,27 @@ router.post('/search', async (req: AuthRequest, res: Response) => {
 // GET /api/knowledge/:categoryName — cards for a category (must be AFTER static routes)
 router.get('/:categoryName', async (req: AuthRequest, res: Response) => {
     try {
+        const [user] = await db.select().from(users).where(eq(users.id, req.userId!));
+        if (!user?.workspaceId) return res.status(400).json({ error: 'No workspace' });
+
         const cards = await db.select({
             card: knowledgeCards,
             employeeName: employees.name,
         })
             .from(knowledgeCards)
             .leftJoin(employees, eq(knowledgeCards.employeeId, employees.id))
-            .where(eq(knowledgeCards.category, decodeURIComponent(req.params.categoryName)));
+            .innerJoin(sessions, eq(knowledgeCards.sessionId, sessions.id))
+            .where(and(
+                eq(knowledgeCards.category, decodeURIComponent(req.params.categoryName)),
+                eq(sessions.workspaceId, user.workspaceId)
+            ));
 
         res.json({
             category: decodeURIComponent(req.params.categoryName),
             blocks: cards.map(c => ({ ...c.card, expertName: c.employeeName })),
         });
     } catch (error: any) {
+        logError('Get category cards failed', error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -332,53 +347,36 @@ router.get('/:categoryName', async (req: AuthRequest, res: Response) => {
 // POST /api/knowledge/:categoryName/chat — AI chat about category
 router.post('/:categoryName/chat', async (req: AuthRequest, res: Response) => {
     try {
+        const [user] = await db.select().from(users).where(eq(users.id, req.userId!));
+        if (!user?.workspaceId) return res.status(400).json({ error: 'No workspace' });
+
         const { question, history } = req.body;
 
         const cards = await db.select().from(knowledgeCards)
-            .where(eq(knowledgeCards.category, decodeURIComponent(req.params.categoryName)));
+            .innerJoin(sessions, eq(knowledgeCards.sessionId, sessions.id))
+            .where(and(
+                eq(knowledgeCards.category, decodeURIComponent(req.params.categoryName)),
+                eq(sessions.workspaceId, user.workspaceId)
+            ));
 
         const context = cards.map(c =>
-            `Topic: ${c.topic}\nContent: ${c.content}\nTags: ${c.tags?.join(', ')}`
+            `Topic: ${c.knowledge_cards.topic}\nContent: ${c.knowledge_cards.content}\nTags: ${c.knowledge_cards.tags?.join(', ')}`
         ).join('\n\n---\n\n');
 
-        const hfToken = process.env.HUGGINGFACE_API_TOKEN;
-        if (!hfToken) {
-            return res.status(500).json({ error: 'Missing HUGGINGFACE_API_TOKEN in environment variables' });
-        }
-
-        const messages: any[] = [
+        const messages: { role: 'system' | 'user' | 'assistant'; content: string }[] = [
             { role: 'system', content: `You are a knowledge assistant. Answer based on these knowledge cards:\n\n${context}\n\nOnly answer from available information. Cite sources.` },
             ...(history || []),
             { role: 'user', content: question },
         ];
 
-        const response = await fetch('https://router.huggingface.co/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-                Authorization: `Bearer ${hfToken}`,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                model: 'Qwen/Qwen2.5-72B-Instruct:novita',
-                messages,
-                temperature: 0.3,
-                max_tokens: 1200,
-            }),
-        });
-
-        if (!response.ok) {
-            const body = await response.text();
-            return res.status(502).json({ error: `Hugging Face API error: ${response.status} ${body}` });
-        }
-
-        const completion = await response.json() as any;
-        const answer = completion?.choices?.[0]?.message?.content || 'No answer returned.';
+        const answer = await createHfChatCompletion({ messages, temperature: 0.3, maxTokens: 1200 }) || 'No answer returned.';
 
         res.json({
             answer,
-            sources: cards.map(c => ({ id: c.id, topic: c.topic })),
+            sources: cards.map(c => ({ id: c.knowledge_cards.id, topic: c.knowledge_cards.topic })),
         });
     } catch (error: any) {
+        logError('Category chat failed', error);
         res.status(500).json({ error: error.message });
     }
 });

@@ -1,31 +1,35 @@
 export const EXTRACTOR_PROMPT = `
-Du bist ein Wissensmanagement-Experte. Du erhältst ein Transkript eines
-Interviews mit einem Fachexperten.
+You are a knowledge management expert. You receive a transcript of an
+interview with a domain expert who is leaving the company.
 
-Deine Aufgabe: Extrahiere strukturierte Knowledge Cards.
+Your task: Extract structured Knowledge Cards.
 
-Für jede Karte liefere:
-- topic: Kurzer Titel (max 10 Wörter)
-- content: Das Wissen in 2-5 klaren Sätzen. Schreibe so, dass ein
-  Neuling es versteht. Behalte spezifische Zahlen, Namen, Schritte bei.
-- tags: 2-5 relevante Tags als Array
+For each card provide:
+- topic: Short title (max 10 words)
+- content: The knowledge in 2-5 clear sentences. Write so a newcomer
+  can understand. Keep specific numbers, names, steps.
+- category: One of "Process", "Technical", "Stakeholder", "Risk", "Tool", "Policy", "Uncategorized"
+- tags: 2-5 relevant tags as an array
 - importance: "low" | "normal" | "high" | "critical"
+- confidence: A number between 0 and 1 indicating how confident you are in the extraction
 
-REGELN:
-- Ignoriere Smalltalk und Füllwörter
-- Trenne verschiedene Themen in separate Cards
-- Behalte konkrete Details (Zahlen, Schritte, Werkzeuge)
-- Markiere Sicherheitsrelevantes als "critical"
-- Schreibe auf Deutsch
+RULES:
+- Ignore small talk and filler words
+- Separate different topics into separate cards
+- Keep concrete details (numbers, steps, tools)
+- Mark security-relevant items as "critical"
+- Write in English
 
-Antworte AUSSCHLIESSLICH mit einem validen JSON-Objekt in diesem Format:
+Respond ONLY with a valid JSON object in this format:
 {
   "cards": [
     {
       "topic": "...",
       "content": "...",
+      "category": "Process",
       "tags": ["...", "..."],
-      "importance": "normal"
+      "importance": "normal",
+      "confidence": 0.9
     }
   ]
 }

@@ -7,7 +7,7 @@ import { KnowledgeBaseSkeleton } from "@/components/skeletons";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 
 const iconMap: Record<string, React.ReactNode> = {
@@ -31,7 +31,6 @@ export default function KnowledgeBase() {
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { toast } = useToast();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
@@ -39,20 +38,20 @@ export default function KnowledgeBase() {
     if (!file || uploading) return;
     const allowed = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/markdown', 'text/plain'];
     if (!allowed.includes(file.type)) {
-      toast({ title: 'Invalid file type', description: 'Use PDF, DOCX, Markdown, or plain text.', variant: 'destructive' });
+      toast.error('Invalid file type', { description: 'Use PDF, DOCX, Markdown, or plain text.' });
       return;
     }
     setUploading(true);
     try {
       await api.uploadKnowledgeDocument(file, uploadCategory || undefined);
-      toast({ title: 'Uploaded', description: `${file.name} is being processed.` });
+      toast.success('Uploaded', { description: `${file.name} is being processed.` });
       queryClient.invalidateQueries({ queryKey: ['knowledge', 'categories'] });
       setUploadOpen(false);
       if (uploadCategory && uploadCategory !== 'Uploaded') {
         navigate(`/app/knowledge/${encodeURIComponent(uploadCategory)}`);
       }
     } catch (e: any) {
-      toast({ title: 'Upload failed', description: e?.message || 'Please try again.', variant: 'destructive' });
+      toast.error('Upload failed', { description: e?.message || 'Please try again.' });
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';

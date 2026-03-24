@@ -205,17 +205,17 @@ main_health_check() {
         config_ok=false
     fi
     
-    if [[ -n "$SUPABASE_URL" ]]; then
-        log_success "SUPABASE_URL: $SUPABASE_URL"
+    if [[ -n "$DATABASE_URL" ]]; then
+        log_success "DATABASE_URL: configured"
     else
-        log_error "SUPABASE_URL: missing"
+        log_error "DATABASE_URL: missing"
         config_ok=false
     fi
     
-    if [[ -n "$SUPABASE_SERVICE_KEY" ]]; then
-        log_success "SUPABASE_SERVICE_KEY: $(mask_value "$SUPABASE_SERVICE_KEY")"
+    if [[ -n "$JWT_SECRET" ]]; then
+        log_success "JWT_SECRET: configured"
     else
-        log_error "SUPABASE_SERVICE_KEY: missing"
+        log_error "JWT_SECRET: missing"
         config_ok=false
     fi
     
@@ -240,7 +240,7 @@ main_health_check() {
     
     # Check Frontend
     ((total_checks++))
-    if check_service "Frontend" "http://localhost:3000"; then
+    if check_service "Frontend" "http://localhost:8080"; then
         ((checks_passed++))
     fi
     
@@ -263,12 +263,7 @@ main_health_check() {
         fi
     fi
     
-    if [[ -n "$SUPABASE_URL" && -n "$SUPABASE_SERVICE_KEY" ]]; then
-        ((total_checks++))
-        if check_api_auth "Supabase REST" "${SUPABASE_URL%/}/rest/v1/" "-H \"apikey: $SUPABASE_SERVICE_KEY\" -H \"Authorization: Bearer $SUPABASE_SERVICE_KEY\""; then
-            ((checks_passed++))
-        fi
-    fi
+
     
     # Docker services check
     echo ""
@@ -292,8 +287,8 @@ main_health_check() {
     
     echo ""
     log_info "Service URLs:"
-    echo "  Frontend: http://localhost:3000"
-    echo "  Backend:  http://localhost:3001/api"
+    echo "  Frontend:   http://localhost:8080"
+    echo "  Backend:    http://localhost:3001/api"
     echo "  AI Service: http://localhost:5000/api"
     echo ""
     

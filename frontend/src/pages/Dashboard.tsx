@@ -41,7 +41,7 @@ export default function Dashboard() {
         <StatCard label="Employees Pending" value={pendingEmployees.length} icon={<Users className="w-4 h-4" />} change="+2 this week" trend="up" />
         <StatCard label="Sessions Completed" value={completedSessions} icon={<Mic className="w-4 h-4" />} change={`${sessions.length} total`} trend="up" />
         <StatCard label="Transcripts Awaiting" value={awaitingReview.length} icon={<FileCheck className="w-4 h-4" />} change={awaitingReview.length > 0 ? "Action needed" : "All clear"} trend="neutral" />
-        <StatCard label="Reports Finalized" value={3} icon={<BookOpen className="w-4 h-4" />} change="+1 this week" trend="up" />
+        <StatCard label="Reports Finalized" value={sessions.filter((s: any) => s.reportStatus === 'finalized' || s.reportStatus === 'generated').length} icon={<BookOpen className="w-4 h-4" />} trend="up" />
       </div>
 
       {/* Approval Banner */}

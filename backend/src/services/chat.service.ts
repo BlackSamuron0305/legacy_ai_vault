@@ -1,7 +1,6 @@
-import { eq, asc } from 'drizzle-orm';
+import { eq, asc, sql } from 'drizzle-orm';
 import { db } from '../db/drizzle';
 import { chatMessages } from '../db/schema';
-import { supabase } from '../db/supabase';
 import { buildChatbotPrompt } from '../prompts/chatbot';
 import { createEmbedding } from './embedding.service';
 import { log, logError } from '../utils/logger';
@@ -22,39 +21,34 @@ interface ChatResponse {
 }
 
 /**
- * Answer a question using RAG: embed question → vector search (Supabase RPC) → LLM answer.
- * Vector search uses Supabase JS client (pgvector RPC).
- * Chat history uses Drizzle.
+ * Answer a question using RAG: embed question → vector search (pgvector SQL) → LLM answer.
  */
-export async function askQuestion(question: string, sessionId?: string): Promise<ChatResponse> {
+export async function askQuestion(question: string, workspaceId: string, sessionId?: string): Promise<ChatResponse> {
     const sid = sessionId || uuidv4();
-    log('Chat question received', { question, sessionId: sid });
+    log('Chat question received', { question, sessionId: sid, workspaceId });
 
     // 1. Embed the question
     const queryEmbedding = await createEmbedding(question);
+    const embeddingStr = `[${queryEmbedding.join(',')}]`;
 
-    // 2. Vector search via Supabase RPC (pgvector)
-    const { data: relevantCards, error: searchError } = await supabase.rpc('search_knowledge', {
-        query_embedding: queryEmbedding,
-        match_threshold: 0.65,
-        match_count: 5,
-    });
+    // 2. Vector search via pgvector SQL function (workspace-scoped + hybrid)
+    const searchResult = await db.execute(sql`
+        SELECT id, topic, content, tags, importance, expert_name, expert_department, interview_date, similarity
+        FROM search_knowledge(${embeddingStr}::vector, ${workspaceId}::uuid, 0.65, 5, ${question})
+    `);
 
-    if (searchError) {
-        logError('Vector search failed', searchError);
-        throw new Error('Knowledge search failed');
-    }
+    const relevantCards = searchResult as any[];
 
     // 3. Build context from found cards
     let answer: string;
     const sources: ChatSource[] = [];
 
     if (!relevantCards || relevantCards.length === 0) {
-        answer = 'Dazu habe ich leider kein Wissen im Vault. Es wurde noch kein passendes Expertenwissen zu diesem Thema gesammelt.';
+        answer = 'I don\'t have any knowledge about that topic in the vault yet. No relevant expert knowledge has been captured on this subject.';
     } else {
         const context = relevantCards
             .map((card: any) =>
-                `[Quelle: ${card.expert_name}, Abteilung: ${card.expert_department}]\nThema: ${card.topic}\nWichtigkeit: ${card.importance}\n${card.content}`
+                `[Source: ${card.expert_name}, Department: ${card.expert_department}]\nTopic: ${card.topic}\nImportance: ${card.importance}\n${card.content}`
             )
             .join('\n\n---\n\n');
 
@@ -70,7 +64,7 @@ export async function askQuestion(question: string, sessionId?: string): Promise
             maxTokens: 1200,
         });
 
-        answer = answerText || 'Entschuldigung, ich konnte keine Antwort generieren.';
+        answer = answerText || 'Sorry, I could not generate an answer.';
 
         for (const card of relevantCards) {
             sources.push({

@@ -27,7 +27,7 @@ export async function extractKnowledge(sessionId: string, employeeId: string | n
         const responseText = await createHfChatCompletion({
             messages: [
                 { role: 'system', content: EXTRACTOR_PROMPT },
-                { role: 'user', content: `Transkript:\n\n${transcript}` },
+                { role: 'user', content: `Transcript:\n\n${transcript}` },
             ],
             responseFormat: { type: 'json_object' },
             temperature: 0.3,
@@ -63,8 +63,8 @@ export async function extractKnowledge(sessionId: string, employeeId: string | n
             let embedding: number[] | undefined;
             try {
                 embedding = await createEmbedding(embeddingText);
-            } catch {
-                log('Embedding generation failed, storing card without embedding');
+            } catch (embeddingErr) {
+                logError('Embedding generation failed, storing card without embedding', embeddingErr);
             }
 
             await db.insert(knowledgeCards).values({
@@ -85,22 +85,12 @@ export async function extractKnowledge(sessionId: string, employeeId: string | n
         await db.update(sessions)
             .set({
                 topicsExtracted: cards.length,
+                coverageScore: Math.min(100, Math.round((cards.length / 15) * 100)),
                 lastActivity: new Date(),
             })
             .where(eq(sessions.id, sessionId));
 
-        // 6. Update employee (if assigned)
-        if (employeeId) {
-            await db.update(employees)
-                .set({
-                    sessionStatus: 'completed',
-                    transcriptStatus: 'generated',
-                    coverageScore: Math.min(100, cards.length * 6),
-                })
-                .where(eq(employees.id, employeeId));
-        }
-
-        // 7. Get workspace for activity
+        // 5. Get workspace for activity
         const [session] = await db.select().from(sessions).where(eq(sessions.id, sessionId));
         const emp = employeeId
             ? (await db.select().from(employees).where(eq(employees.id, employeeId)))[0]

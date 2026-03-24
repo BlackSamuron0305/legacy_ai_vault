@@ -41,9 +41,9 @@ export function SearchOverlay({ open, onOpenChange }: SearchOverlayProps) {
 
   return (
     <CommandDialog open={open} onOpenChange={onOpenChange}>
-      <CommandInput placeholder="Suchen – Sessions, Mitarbeiter, Wissen..." />
+      <CommandInput placeholder="Search — Sessions, Employees, Knowledge..." />
       <CommandList>
-        <CommandEmpty>Keine Ergebnisse gefunden.</CommandEmpty>
+        <CommandEmpty>No results found.</CommandEmpty>
 
         <CommandGroup heading="Navigation">
           {NAV_ITEMS.map((item) => (

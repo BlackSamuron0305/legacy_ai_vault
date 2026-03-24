@@ -4,7 +4,7 @@ import { relations } from 'drizzle-orm';
 // Custom type for pgvector
 const vector = customType<{ data: number[]; driverInput: string }>({
     dataType() {
-        return 'vector(1536)';
+        return 'vector(384)';
     },
     toDriver(value: number[]): string {
         return `[${value.join(',')}]`;
@@ -21,10 +21,11 @@ export const workspaces = pgTable('workspaces', {
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 });
 
-// ===== USERS (linked to Supabase Auth) =====
+// ===== USERS =====
 export const users = pgTable('users', {
-    id: uuid('id').primaryKey(), // = supabase auth.users.id
-    email: text('email').notNull(),
+    id: uuid('id').defaultRandom().primaryKey(),
+    email: text('email').notNull().unique(),
+    passwordHash: text('password_hash').notNull(),
     fullName: text('full_name').notNull(),
     role: text('role').default('viewer'), // admin (platform), owner (company creator), member, reviewer, viewer
     workspaceId: uuid('workspace_id').references(() => workspaces.id, { onDelete: 'cascade' }),
@@ -37,6 +38,7 @@ export const usersRelations = relations(users, ({ one }) => ({
 }));
 
 // ===== EMPLOYEES (departing experts) =====
+// 4NF: sessionStatus, transcriptStatus, coverageScore REMOVED — computed from latest session via subquery
 export const employees = pgTable('employees', {
     id: uuid('id').defaultRandom().primaryKey(),
     workspaceId: uuid('workspace_id').references(() => workspaces.id, { onDelete: 'cascade' }),
@@ -47,9 +49,6 @@ export const employees = pgTable('employees', {
     avatarInitials: text('avatar_initials'),
     exitDate: text('exit_date'),
     tenure: text('tenure'),
-    sessionStatus: text('session_status').default('not_started'), // not_started, scheduled, in_progress, completed
-    transcriptStatus: text('transcript_status').default('none'), // none, generated, under_review, approved
-    coverageScore: real('coverage_score').default(0),
     riskLevel: text('risk_level').default('medium'), // low, medium, high, critical
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 });
@@ -64,7 +63,7 @@ export const sessions = pgTable('sessions', {
     id: uuid('id').defaultRandom().primaryKey(),
     workspaceId: uuid('workspace_id').references(() => workspaces.id, { onDelete: 'cascade' }),
     employeeId: uuid('employee_id').references(() => employees.id, { onDelete: 'cascade' }),
-    status: text('status').default('scheduled'), // scheduled, in_progress, awaiting_review, awaiting_approval, processing, finalized
+    status: text('status').default('scheduled'), // scheduled, in_progress, paused, awaiting_review, awaiting_approval, processing, processing_failed, finalized
     lastActivity: timestamp('last_activity', { withTimezone: true }).defaultNow(),
     coverageScore: real('coverage_score').default(0),
     transcriptStatus: text('transcript_status').default('pending'), // pending, generated, reviewed, approved
@@ -178,8 +177,9 @@ export const reportsRelations = relations(reports, ({ one }) => ({
 // ===== CHAT MESSAGES =====
 export const chatMessages = pgTable('chat_messages', {
     id: uuid('id').defaultRandom().primaryKey(),
-    sessionId: uuid('session_id').notNull(),
-    role: text('role').notNull(),
+    workspaceId: uuid('workspace_id').references(() => workspaces.id, { onDelete: 'cascade' }),
+    sessionId: uuid('session_id').references(() => sessions.id, { onDelete: 'cascade' }),
+    role: text('role').notNull(), // user, assistant
     content: text('content').notNull(),
     sources: uuid('sources').array().default([]),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),

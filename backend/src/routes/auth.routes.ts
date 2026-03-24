@@ -1,33 +1,35 @@
 import { Router, Request, Response } from 'express';
-import { createClient } from '@supabase/supabase-js';
+import bcrypt from 'bcrypt';
 import { db } from '../db/drizzle';
 import { users, workspaces } from '../db/schema';
 import { eq } from 'drizzle-orm';
-import { requireAuth, AuthRequest } from '../middleware/auth';
+import { requireAuth, AuthRequest, signToken } from '../middleware/auth';
+import { log, logError } from '../utils/logger';
 
 const router = Router();
 
-const supabase = createClient(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_KEY!
-);
+const BCRYPT_ROUNDS = 12;
 
 // POST /api/auth/register
 router.post('/register', async (req: Request, res: Response) => {
     try {
         const { email, password, fullName, companyName, domain: explicitDomain } = req.body;
+        if (!email || !password || !fullName) {
+            return res.status(400).json({ error: 'email, password, and fullName are required' });
+        }
+        if (password.length < 8) {
+            return res.status(400).json({ error: 'Password must be at least 8 characters' });
+        }
         const emailDomain = email.split('@')[1]?.toLowerCase();
 
-        // Create Supabase auth user
-        const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-            email,
-            password,
-            email_confirm: true,
-        });
-
-        if (authError) {
-            return res.status(400).json({ error: authError.message });
+        // Check if email is already taken
+        const [existing] = await db.select().from(users).where(eq(users.email, email.toLowerCase()));
+        if (existing) {
+            return res.status(400).json({ error: 'Email already registered' });
         }
+
+        // Hash password
+        const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
 
         // Check if a workspace with this email domain already exists
         let workspace = null;
@@ -37,11 +39,9 @@ router.post('/register', async (req: Request, res: Response) => {
             : [];
 
         if (existingWs && !explicitDomain) {
-            // Join existing company (employee flow — domain matches)
             workspace = existingWs;
             userRole = 'member';
         } else if (explicitDomain) {
-            // Company registration — create new workspace, user becomes owner
             const [newWs] = await db.insert(workspaces).values({
                 name: companyName || `${fullName}'s Workspace`,
                 companyName,
@@ -50,34 +50,26 @@ router.post('/register', async (req: Request, res: Response) => {
             workspace = newWs;
             userRole = 'owner';
         }
-        // else: no domain match & no explicit domain → user has no workspace (can join later)
 
-        // Create user profile
         const initials = fullName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
-        await db.insert(users).values({
-            id: authData.user.id,
-            email,
+        const [newUser] = await db.insert(users).values({
+            email: email.toLowerCase(),
+            passwordHash,
             fullName,
             role: userRole,
             workspaceId: workspace?.id || null,
             avatarInitials: initials,
-        });
+        }).returning();
 
-        // Sign in to get token
-        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-        });
+        const accessToken = signToken({ sub: newUser.id, email: newUser.email });
 
-        if (signInError) {
-            return res.status(400).json({ error: signInError.message });
-        }
-
+        log('User registered', { userId: newUser.id, role: userRole });
         res.json({
-            user: { id: authData.user.id, email, fullName, role: userRole, workspaceId: workspace?.id || null, avatarInitials: initials },
-            session: signInData.session,
+            user: { id: newUser.id, email: newUser.email, fullName, role: userRole, workspaceId: workspace?.id || null, avatarInitials: initials },
+            session: { access_token: accessToken },
         });
     } catch (error: any) {
+        logError('Register failed', error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -86,67 +78,63 @@ router.post('/register', async (req: Request, res: Response) => {
 router.post('/login', async (req: Request, res: Response) => {
     try {
         const { email, password } = req.body;
-
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) {
-            return res.status(401).json({ error: error.message });
+        if (!email || !password) {
+            return res.status(400).json({ error: 'email and password are required' });
         }
 
-        // Get user profile
-        const [userProfile] = await db.select().from(users).where(eq(users.id, data.user.id));
+        const [userRow] = await db.select().from(users).where(eq(users.email, email.toLowerCase()));
+        if (!userRow) {
+            return res.status(401).json({ error: 'Invalid email or password' });
+        }
 
+        const valid = await bcrypt.compare(password, userRow.passwordHash);
+        if (!valid) {
+            return res.status(401).json({ error: 'Invalid email or password' });
+        }
+
+        const accessToken = signToken({ sub: userRow.id, email: userRow.email });
+
+        const { passwordHash: _ph, ...userProfile } = userRow;
+        log('User logged in', { userId: userRow.id });
         res.json({
             user: userProfile,
-            session: data.session,
+            session: { access_token: accessToken },
         });
     } catch (error: any) {
+        logError('Login failed', error);
         res.status(500).json({ error: error.message });
     }
 });
 
 // POST /api/auth/logout
-router.post('/logout', async (req: Request, res: Response) => {
-    try {
-        const authHeader = req.headers.authorization;
-        if (authHeader?.startsWith('Bearer ')) {
-            await supabase.auth.admin.signOut(authHeader.slice(7));
-        }
-        res.json({ success: true });
-    } catch (error: any) {
-        res.status(500).json({ error: error.message });
-    }
+router.post('/logout', async (_req: Request, res: Response) => {
+    // With stateless JWTs there is no server-side session to revoke.
+    // Client discards the token.
+    res.json({ success: true });
 });
 
 // GET /api/auth/me — get current user profile with workspace
-router.get('/me', async (req: Request, res: Response) => {
+router.get('/me', requireAuth, async (req: AuthRequest, res: Response) => {
     try {
-        const authHeader = req.headers.authorization;
-        if (!authHeader?.startsWith('Bearer ')) {
-            return res.status(401).json({ error: 'Not authenticated' });
-        }
-
-        const { data: { user }, error } = await supabase.auth.getUser(authHeader.slice(7));
-        if (error || !user) {
-            return res.status(401).json({ error: 'Invalid token' });
-        }
-
-        const [userProfile] = await db.select().from(users).where(eq(users.id, user.id));
-        if (!userProfile) {
+        const [userRow] = await db.select().from(users).where(eq(users.id, req.userId!));
+        if (!userRow) {
             return res.status(404).json({ error: 'User profile not found' });
         }
 
         let workspaceName = '';
         let companyName = '';
         let domain = '';
-        if (userProfile.workspaceId) {
-            const [ws] = await db.select().from(workspaces).where(eq(workspaces.id, userProfile.workspaceId));
+        if (userRow.workspaceId) {
+            const [ws] = await db.select().from(workspaces).where(eq(workspaces.id, userRow.workspaceId));
             workspaceName = ws?.name || '';
             companyName = ws?.companyName || ws?.name || '';
             domain = ws?.domain || '';
         }
 
-        res.json({ ...userProfile, workspaceName, companyName, domain });
+        const { passwordHash: _ph, ...profile } = userRow;
+        res.json({ ...profile, workspaceName, companyName, domain });
     } catch (error: any) {
+        logError('Get profile failed', error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -160,8 +148,11 @@ router.put('/profile', requireAuth, async (req: AuthRequest, res: Response) => {
             .set({ fullName, avatarInitials: initials })
             .where(eq(users.id, req.userId!))
             .returning();
-        res.json(updated);
+        const { passwordHash: _ph, ...profile } = updated;
+        log('Profile updated', { userId: req.userId });
+        res.json(profile);
     } catch (error: any) {
+        logError('Update profile failed', error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -189,8 +180,11 @@ router.post('/join-company', requireAuth, async (req: AuthRequest, res: Response
             .where(eq(users.id, req.userId!))
             .returning();
 
-        res.json({ ...updated, workspaceName: ws.name, companyName: ws.companyName || ws.name, domain: ws.domain });
+        const { passwordHash: _ph, ...profile } = updated;
+        log('User joined company', { userId: req.userId, workspaceId: ws.id });
+        res.json({ ...profile, workspaceName: ws.name, companyName: ws.companyName || ws.name, domain: ws.domain });
     } catch (error: any) {
+        logError('Join company failed', error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -206,8 +200,10 @@ router.put('/workspace', requireAuth, async (req: AuthRequest, res: Response) =>
             .set({ name: companyName, companyName })
             .where(eq(workspaces.id, userRow.workspaceId!))
             .returning();
+        log('Workspace updated', { workspaceId: userRow.workspaceId });
         res.json(updated);
     } catch (error: any) {
+        logError('Update workspace failed', error);
         res.status(500).json({ error: error.message });
     }
 });

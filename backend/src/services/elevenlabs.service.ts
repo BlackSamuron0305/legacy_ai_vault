@@ -1,31 +1,4 @@
-import { buildInterviewerPrompt, buildFirstMessage } from '../prompts/interviewer';
 import { log, logError } from '../utils/logger';
-
-interface AgentConfig {
-    agent_id: string;
-    system_prompt: string;
-    first_message: string;
-}
-
-/**
- * Build ElevenLabs Conversational AI agent config for an interview session.
- * The actual Voice-to-Voice happens client-side via the ElevenLabs SDK.
- * This service provides the configuration needed by the frontend.
- */
-export function buildAgentConfig(name: string, specialization: string): AgentConfig {
-    const agentId = process.env.ELEVENLABS_AGENT_ID;
-    if (!agentId) {
-        throw new Error('Missing ELEVENLABS_AGENT_ID in environment variables');
-    }
-
-    log('Building ElevenLabs agent config', { name, specialization });
-
-    return {
-        agent_id: agentId,
-        system_prompt: buildInterviewerPrompt(name, specialization),
-        first_message: buildFirstMessage(name, specialization),
-    };
-}
 
 /**
  * Fetch the most recent conversation ID for a given agent from ElevenLabs API.

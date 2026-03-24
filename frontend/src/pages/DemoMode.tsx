@@ -9,22 +9,22 @@ const scenarios = [
   {
     id: "offboarding",
     label: "Offboarding",
-    description: "Wissen sichern bevor ein Mitarbeiter das Unternehmen verlässt.",
+    description: "Capture knowledge before an employee leaves the company.",
     Icon: LogOut,
   },
   {
     id: "onboarding",
     label: "Onboarding",
-    description: "Einen neuen Mitarbeiter begrüßen und einführen.",
+    description: "Welcome and onboard a new employee.",
     Icon: UserPlus,
   },
 ];
 
 const personas = [
-  { id: "engineer", role: "Senior Engineer", department: "Engineering", tenure: "8 Jahre" },
-  { id: "cs-lead", role: "Customer Success Lead", department: "Customer Success", tenure: "4 Jahre" },
-  { id: "ops-manager", role: "VP of Operations", department: "Operations", tenure: "6 Jahre" },
-  { id: "cto", role: "CTO / Founder", department: "Executive", tenure: "10 Jahre" },
+  { id: "engineer", role: "Senior Engineer", department: "Engineering", tenure: "8 Years" },
+  { id: "cs-lead", role: "Customer Success Lead", department: "Customer Success", tenure: "4 Years" },
+  { id: "ops-manager", role: "VP of Operations", department: "Operations", tenure: "6 Years" },
+  { id: "cto", role: "CTO / Founder", department: "Executive", tenure: "10 Years" },
 ];
 
 export default function DemoMode() {
@@ -163,12 +163,12 @@ export default function DemoMode() {
               onClick={handleStart}
               disabled={!name.trim()}
             >
-              Demo starten <ArrowRight className="w-4 h-4" />
+              Start Demo <ArrowRight className="w-4 h-4" />
             </Button>
           </motion.div>
 
           <p className="text-center text-xs text-muted-foreground mt-6">
-            Keine Anmeldung nötig. Der KI-Bot spricht ca. 5 Sekunden mit dir.
+            No sign-up required. The AI bot will talk with you for about 5 seconds.
           </p>
         </div>
       </section>

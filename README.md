@@ -1,76 +1,86 @@
 # LegacyAI Vault
 
-> Knowledge capture platform — KI-gestütztes Offboarding-Interview-System für Unternehmen
+> Knowledge capture platform — AI-powered offboarding interview system for enterprises
 
-Enterprise SaaS-Plattform, die implizites Expertenwissen ausscheidender Mitarbeiter per Voice-AI-Interview extrahiert, strukturiert, in einer durchsuchbaren Wissensdatenbank speichert und per RAG-Chatbot abrufbar macht.
-
----
-
-## Inhaltsverzeichnis
-
-- [Tech-Stack](#tech-stack)
-- [Systemarchitektur](#systemarchitektur)
-- [Datenmodell](#datenmodell)
-- [Backend — API-Routen](#backend--api-routen)
-- [AI-Pipeline](#ai-pipeline)
-- [ElevenLabs-Integration](#elevenlabs-integration)
-- [Authentifizierung & Rollen](#authentifizierung--rollen)
-- [Datenbankschema & Migrations-Workflow](#datenbankschema--migrations-workflow)
-- [Frontend-Struktur](#frontend-struktur)
-- [Umgebungsvariablen](#umgebungsvariablen)
-- [Entwicklung starten](#entwicklung-starten)
+Enterprise SaaS platform that extracts implicit expert knowledge from departing employees via voice-AI interviews, structures it into searchable knowledge cards, stores it in a vector database, and makes it accessible through a RAG chatbot.
 
 ---
 
-## Tech-Stack
+## Table of Contents
+
+- [Tech Stack](#tech-stack)
+- [Architecture](#architecture)
+- [Data Model](#data-model)
+- [Backend — API Routes](#backend--api-routes)
+- [AI Pipeline](#ai-pipeline)
+- [ElevenLabs Integration](#elevenlabs-integration)
+- [Authentication & Roles](#authentication--roles)
+- [Database Schema & Migration Workflow](#database-schema--migration-workflow)
+- [Frontend Structure](#frontend-structure)
+- [Environment Variables](#environment-variables)
+- [Getting Started](#getting-started)
+
+---
+
+## Tech Stack
 
 ### Frontend
 
-| Technologie | Version | Zweck |
+| Technology | Version | Purpose |
 |---|---|---|
-| React | 18.3 | UI-Framework |
-| TypeScript | 5.3 | Typsicherheit |
-| Vite | 6.x | Build-Tool, Dev-Server (Port 8080) |
-| React Router v6 | 6.30 | Client-seitiges Routing (SPA) |
-| TanStack Query | 5.x | Server-State-Management, Caching |
-| shadcn/ui + Radix UI | — | Komponentenbibliothek (headless, vollständig angepasst) |
-| Tailwind CSS | 3.x | Utility-first Styling |
-| Framer Motion | 12.x | Animationen |
-| React Hook Form | 7.x | Formularverwaltung |
-| `@elevenlabs/react` | 0.14 | ElevenLabs React SDK (useConversation Hook) |
+| React | 18.3 | UI Framework |
+| TypeScript | 5.8 | Type safety |
+| Vite | 6.x | Build tool, dev server (Port 8080) |
+| React Router v6 | 6.30 | Client-side routing (SPA) |
+| TanStack Query | 5.x | Server-state management, caching |
+| shadcn/ui + Radix UI | — | Component library (headless, fully customized) |
+| Tailwind CSS | 3.x | Utility-first styling |
+| Framer Motion | 12.x | Animations |
+| React Hook Form | 7.x | Form management |
+| `@elevenlabs/react` | 0.14 | ElevenLabs React SDK (useConversation hook) |
 
 ### Backend
 
-| Technologie | Version | Zweck |
+| Technology | Version | Purpose |
 |---|---|---|
-| Node.js + Express | 4.18 | HTTP-Server (Port 3001) |
-| TypeScript | 5.3 | Typsicherheit |
-| ts-node-dev | 2.x | Hot-Reload in Entwicklung |
-| Drizzle ORM | 0.45.1 | Typsicherer Datenbankzugriff |
-| drizzle-kit | 0.31.9 | Schema-Migrationen (push-basiert) |
-| postgres | 3.4 | PostgreSQL-Treiber (raw, pooled) |
-| `@supabase/supabase-js` | 2.x | Auth-Token-Validierung + Vector-RPC-Calls |
+| Node.js + Express | 4.18 | HTTP server (Port 3001) |
+| TypeScript | 5.3 | Type safety |
+| ts-node-dev | 2.x | Hot-reload in development |
+| Drizzle ORM | 0.45.1 | Type-safe database access |
+| drizzle-kit | 0.31.9 | Schema migrations (push-based) |
+| postgres | 3.4 | PostgreSQL driver (raw, pooled) |
+| bcrypt | 6.x | Password hashing (12 rounds) |
+| jsonwebtoken | 9.x | JWT auth token generation & verification |
 
-### Datenbank & Infrastruktur
+### AI Service (Python)
 
-| Technologie | Zweck |
+| Technology | Version | Purpose |
+|---|---|---|
+| Flask | 3.0 | Microservice HTTP server (Port 5000) |
+| gunicorn | — | Production WSGI server |
+| ElevenLabs SDK | — | Agent management, voice processing |
+
+### Database & Infrastructure
+
+| Technology | Purpose |
 |---|---|
-| **Supabase (PostgreSQL)** | Primäre Datenbank, Auth, Row Level Security |
-| **pgvector** | 1536-dim. Embedding-Vektoren in `knowledge_cards.embedding` |
-| **Supabase Auth** | JWT-basierte Authentifizierung |
-| **Supabase Storage** | Dokument-Uploads (PDF, DOCX) |
+| **PostgreSQL 16** (pgvector/pgvector:pg16) | Primary database via Docker |
+| **pgvector** | 384-dim embedding vectors in `knowledge_cards.embedding` |
+| **Local JWT auth** | bcrypt password hashing + JWT token-based authentication |
+| **Local filesystem** | Document uploads and report storage at `UPLOADS_DIR/` |
+| **Docker Compose** | Orchestrates 4 services: postgres, backend, frontend, ai-service |
 
-### Externe AI-Services
+### External AI Services
 
-| Service | Zweck |
+| Service | Purpose |
 |---|---|
-| **ElevenLabs Conversational AI** | Voice-to-Voice KI-Interviewer (Agent `agent_8901kkq04wagefmr6qtbvw8ab0z2`) |
-| **Hugging Face Inference API** | LLM für Knowledge-Extraction (Extractor-Prompt) + RAG-Chatbot-Antworten |
-| **Hugging Face Embeddings** | `sentence-transformers` → 1536-dim. Vektoren für semantische Suche |
+| **ElevenLabs Conversational AI** | Voice-to-voice AI interviewer (Agent `agent_8901kkq04wagefmr6qtbvw8ab0z2`) |
+| **HuggingFace Inference API** | LLM for knowledge extraction + RAG chatbot (Qwen/Qwen2.5-72B-Instruct) |
+| **HuggingFace Embeddings** | `sentence-transformers/all-MiniLM-L6-v2` → 384-dim vectors for semantic search |
 
 ---
 
-## Systemarchitektur
+## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -80,66 +90,74 @@ Enterprise SaaS-Plattform, die implizites Expertenwissen ausscheidender Mitarbei
 │  ├── /                 ├── /app/dashboard                       │
 │  ├── /pricing          ├── /app/employees                       │
 │  ├── /blog             ├── /app/sessions                        │
-│  └── /register         ├── /app/sessions/:id/interview  ←────┐  │
-│                        ├── /app/sessions/:id/review           │  │
-│                        ├── /app/knowledge                     │  │
-│                        └── /app/analytics                     │  │
-└──────────────────────────────────┬──────────────────────────┬─┘  │
-                                   │ REST API                 │    │
-                                   ▼                          │    │
-┌──────────────────────────────────────────────────────┐      │    │
-│  BACKEND  (Express, Port 3001)                       │      │    │
-│                                                      │      │    │
-│  requireAuth (Supabase JWT)                          │      │    │
-│       │                                              │      │    │
-│  ┌────▼──────────────────────────────────────────┐   │      │    │
-│  │  API-Router                                   │   │      │    │
-│  │  /api/auth        /api/employees              │   │      │    │
-│  │  /api/sessions    /api/knowledge              │   │      │    │
-│  │  /api/analytics   /api/chat                   │   │      │    │
-│  │  /api/reports     /api/activity               │   │      │    │
-│  └────────────────────┬──────────────────────────┘   │      │    │
-│                       │                              │      │    │
-│  ┌────────────────────▼──────────────────────────┐   │      │    │
-│  │  Services                                     │   │      │    │
-│  │  extraction.service  → HuggingFace LLM        │   │      │    │
-│  │  embedding.service   → HuggingFace Embeddings │   │      │    │
-│  │  chat.service        → HuggingFace + pgvector │   │      │    │
-│  │  elevenlabs.service  → ElevenLabs REST API    │   │      │    │
-│  └────────────────────┬──────────────────────────┘   │      │    │
-│                       │                              │      │    │
-│  ┌────────────────────▼──────────────────────────┐   │      │    │
-│  │  Drizzle ORM   ←──── schema.ts (source of     │   │      │    │
-│  │  postgres driver         truth für DB)        │   │      │    │
-└──┼────────────────────┼──────────────────────────┘   │      │    │
-   │                    │                              │      │    │
-   ▼                    ▼                              │      │    │
-┌──────────────────┐  ┌────────────────────────────┐  │      │    │
-│  Supabase Auth   │  │  Supabase PostgreSQL        │  │      │    │
-│  (JWT-Validier.) │  │  + pgvector Extension       │  │      │    │
-│                  │  │  + RLS (service_role)        │  │      │    │
-└──────────────────┘  └────────────────────────────┘  │      │    │
-                                                       │      │    │
-┌──────────────────────────────────────────────────────┘      │    │
-│  ElevenLabs  (extern)                                        │    │
-│  ├── GET /v1/convai/conversation/get-signed-url              │    │
-│  │        ↑ aufgerufen von /api/sessions/:id/token           │    │
-│  │                                                           │    │
-│  └── WebSocket/WebRTC Widget  ←───────────────────────────────────┘
-│       voice ↔ voice, direkt Browser ↔ ElevenLabs
-└──────────────────────────────────────────────────────────────┘
+│  └── /register         ├── /app/sessions/:id/interview          │
+│                        ├── /app/sessions/:id/review             │
+│                        ├── /app/knowledge                       │
+│                        └── /app/analytics                       │
+└──────────────────────────────────────┬──────────────────────────┘
+                                       │ REST API
+                                       ▼
+┌──────────────────────────────────────────────────────────────────┐
+│  BACKEND  (Express, Port 3001)                                   │
+│                                                                  │
+│  requireAuth (JWT verification via jsonwebtoken)                 │
+│       │                                                          │
+│  ┌────▼──────────────────────────────────────────────────────┐   │
+│  │  API Router                                               │   │
+│  │  /api/auth        /api/employees     /api/settings        │   │
+│  │  /api/sessions    /api/knowledge     /api/admin           │   │
+│  │  /api/analytics   /api/chat          /api/files (static)  │   │
+│  │  /api/reports     /api/activity                           │   │
+│  └────────────────────┬──────────────────────────────────────┘   │
+│                       │                                          │
+│  ┌────────────────────▼──────────────────────────────────────┐   │
+│  │  Services                                                 │   │
+│  │  extraction.service  → HuggingFace LLM                    │   │
+│  │  embedding.service   → HuggingFace Embeddings (384-dim)   │   │
+│  │  chat.service        → HuggingFace + pgvector RAG         │   │
+│  │  hf.service          → HuggingFace API wrapper            │   │
+│  │  elevenlabs.service  → ElevenLabs REST API                │   │
+│  │  report-storage      → Local filesystem (UPLOADS_DIR/)    │   │
+│  └────────────────────┬──────────────────────────────────────┘   │
+│                       │                                          │
+│  ┌────────────────────▼──────────────────────────────────────┐   │
+│  │  Drizzle ORM ←── schema.ts (single source of truth)       │   │
+│  │  postgres driver → DATABASE_URL                           │   │
+│  └────────────────────┬──────────────────────────────────────┘   │
+└───────────────────────┼──────────────────────────────────────────┘
+                        │
+                        ▼
+┌──────────────────────────────────────────────────────────────────┐
+│  PostgreSQL 16 + pgvector  (Docker, Port 5432)                   │
+│  ├── 13 tables (workspaces, users, employees, sessions, ...)    │
+│  ├── vector(384) embeddings on knowledge_cards                   │
+│  └── SQL functions: search_knowledge, search_knowledge_by_cat.  │
+└──────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────┐
+│  AI Service  (Flask, Port 5000)                                  │
+│  ├── Classification pipeline                                     │
+│  ├── Report generation                                           │
+│  └── ElevenLabs agent management                                 │
+└──────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────┐
+│  ElevenLabs  (external)                                          │
+│  ├── GET /v1/convai/conversation/get-signed-url                  │
+│  └── WebSocket/WebRTC voice — direct Browser ↔ ElevenLabs       │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Datenmodell
+## Data Model
 
-13 Tabellen, alle in `backend/src/db/schema.ts` definiert. Drizzle ist **Single Source of Truth**.
+13 tables, all defined in `backend/src/db/schema.ts`. Drizzle is the **single source of truth**.
 
 ```
 workspaces          (id, name, company_name, domain, industry)
     │
-    ├── users       (id=supabase_auth_id, email, full_name, role, workspace_id)
+    ├── users       (id, email, password_hash, full_name, role, workspace_id)
     │
     ├── employees   (id, workspace_id, name, role, department, exit_date,
     │                session_status, transcript_status, coverage_score, risk_level)
@@ -151,7 +169,7 @@ workspaces          (id, name, company_name, domain, industry)
     │   │
     │   └── knowledge_cards      (id, session_id, employee_id, topic, content,
     │                             category, tags[], importance, confidence,
-    │                             embedding vector(1536),  ← pgvector
+    │                             embedding vector(384),  ← pgvector
     │                             document_id, source)
     │
     ├── documents   (id, workspace_id, uploaded_by, filename, mime_type,
@@ -165,89 +183,106 @@ workspaces          (id, name, company_name, domain, industry)
     └── workspace_settings    (id, workspace_id, ...)
 ```
 
-### Rollen-Hierarchie (users.role)
+### Role Hierarchy (users.role)
 
 ```
-admin      → Plattform-Admin (Luigi-intern)
-owner      → Workspace-Ersteller (Unternehmens-Owner)
-member     → regulärer Mitarbeiter
-reviewer   → kann Transkripte freigeben
-viewer     → read-only
+admin      → Platform admin (internal)
+owner      → Workspace creator (company owner)
+member     → Regular employee
+reviewer   → Can approve transcripts
+viewer     → Read-only
 ```
 
 ---
 
-## Backend — API-Routen
+## Backend — API Routes
 
-Alle Routen unter `/api/` sind durch `requireAuth` geschützt (einzige Ausnahme: `POST /api/auth/register`, `POST /api/auth/login`).
+All routes under `/api/` are protected by `requireAuth` (exceptions: `POST /api/auth/register`, `POST /api/auth/login`).
 
 ### Auth (`/api/auth`)
-| Method | Pfad | Beschreibung |
+| Method | Path | Description |
 |---|---|---|
-| POST | `/register` | Supabase Auth User erstellen + Workspace anlegen oder beitreten (domain-matching) |
-| POST | `/login` | Supabase signInWithPassword → JWT zurück |
-| GET | `/me` | Aktueller User + Workspace |
+| POST | `/register` | Create user with bcrypt password hash + workspace (auto-join by domain or create new) |
+| POST | `/login` | Verify password with bcrypt → return JWT access token |
+| POST | `/logout` | No-op (JWT is stateless, client discards token) |
+| GET | `/me` | Current user + workspace (requires auth) |
+| PUT | `/profile` | Update user profile |
+| POST | `/join-company` | Join existing workspace by invite code |
 
 ### Sessions (`/api/sessions`)
-| Method | Pfad | Beschreibung |
+| Method | Path | Description |
 |---|---|---|
-| GET | `/` | Alle Sessions des Workspaces (mit Employee-Join) |
-| POST | `/` | Neue Session erstellen (mit oder ohne employeeId) |
-| GET | `/:id` | Session-Detail |
-| POST | `/:id/start` | Status → `in_progress`, Employee-Status aktualisieren |
-| GET | `/:id/token` | **Signed URL von ElevenLabs API** holen (xi-api-key server-seitig) |
-| POST | `/:id/end` | Session beenden, AI-Processing triggern |
-| GET | `/:id/transcript` | Transkript + Segmente abrufen |
-| PUT | `/:id/transcript/approve` | Transkript freigeben |
-| GET | `/:id/processing` | Processing-Status polling |
-| GET | `/:id/classification` | Knowledge-Cards der Session |
+| GET | `/` | All sessions for workspace (with Employee join) |
+| POST | `/` | Create new session (with or without employeeId) |
+| GET | `/:id` | Session detail |
+| POST | `/:id/start` | Status → `in_progress`, update employee status |
+| GET | `/:id/token` | **Signed URL from ElevenLabs API** (xi-api-key server-side) |
+| POST | `/:id/end` | End session, trigger AI processing |
+| POST | `/:id/pause` | Pause an in-progress interview |
+| POST | `/:id/resume` | Resume a paused interview |
+| GET | `/:id/transcript` | Transcript + segments |
+| PUT | `/:id/transcript` | Replace/update all transcript segments |
+| PUT | `/:id/transcript/approve` | Approve transcript, update session status |
+| GET | `/:id/transcript/live` | SSE stream for real-time transcript segments |
+| POST | `/:id/transcript/segment` | Add a real-time transcript segment (atomic ordering) |
+| GET | `/:id/topics` | Extracted topics and knowledge cards |
+| POST | `/:id/reprocess` | Reprocess transcript and regenerate report |
+| GET | `/:id/processing` | Processing status polling |
+| GET | `/:id/classification` | Classify report, extract knowledge cards |
 
 ### Knowledge (`/api/knowledge`)
-| Method | Pfad | Beschreibung |
+| Method | Path | Description |
 |---|---|---|
-| GET | `/categories` | Alle Knowledge-Kategorien |
-| GET | `/cards` | Alle Knowledge-Cards (filterbar) |
-| POST | `/cards` | Knowledge-Card manuell erstellen |
-| GET | `/search` | Semantische Suche via Supabase pgvector RPC |
+| GET | `/categories` | All knowledge categories |
+| GET | `/cards` | All knowledge cards (filterable) |
+| POST | `/cards` | Manually create knowledge card |
+| GET | `/search` | Semantic vector search via pgvector SQL functions |
+| POST | `/:categoryName/chat` | AI chat about a specific category |
+| POST | `/documents/upload` | Upload document (stored locally) |
 
-### Weitere
-| Route | Beschreibung |
+### Other Routes
+| Route | Description |
 |---|---|
-| `/api/analytics/coverage` | Department-Coverage-Metriken |
-| `/api/analytics/gaps` | Mitarbeiter mit geringer Coverage + Risk-Level |
-| `/api/analytics/summary` | Dashboard-KPIs |
-| `/api/chat/ask` | RAG-Chatbot: Frage → Embedding → pgvector → LLM |
-| `/api/chat/history/:sessionId` | Chat-Verlauf |
-| `/api/reports` | Report-CRUD |
-| `/api/employees` | Employee-CRUD |
-| `/api/activity` | Activity-Feed |
+| `/api/analytics/coverage` | Department coverage metrics |
+| `/api/analytics/gaps` | Employees with low coverage + risk level |
+| `/api/analytics/summary` | Dashboard KPIs |
+| `/api/chat/ask` | RAG chatbot: question → embedding → pgvector → LLM (workspace-authorized) |
+| `/api/chat/history/:sessionId` | Chat history (workspace-authorized) |
+| `/api/reports` | Report CRUD |
+| `/api/employees` | Employee CRUD (workspace-authorized) |
+| `/api/activity` | Activity feed |
+| `/api/admin/team` | Team members list |
+| `/api/admin/api-keys` | API key CRUD |
+| `/api/admin/companies` | Company management (owner/admin only) |
+| `/api/settings` | Workspace settings GET/PUT |
+| `/api/files/*` | Static file serving for uploads (auth-protected) |
 
 ---
 
-## AI-Pipeline
+## AI Pipeline
 
-### 1. Interview-Phase (ElevenLabs)
+### 1. Interview Phase (ElevenLabs)
 
 ```
-User öffnet /app/sessions/:id/interview
+User opens /app/sessions/:id/interview
   │
   ├─ Frontend: api.startSession(id)  →  POST /api/sessions/:id/start
   │                                      (Status → in_progress)
   │
   ├─ Frontend: api.getSessionToken(id) →  GET /api/sessions/:id/token
   │   Backend: GET https://api.elevenlabs.io/v1/convai/conversation/get-signed-url
-  │            Header: xi-api-key (server-seitig, nie im Browser)
-  │            → signed_url zurück
+  │            Header: xi-api-key (server-side, never in browser)
+  │            → signed_url returned
   │
   └─ Frontend: useConversation().startSession({ signedUrl })
-               WebSocket/WebRTC Verbindung zu ElevenLabs
-               Voice-to-Voice läuft direkt Browser ↔ ElevenLabs
+               WebSocket/WebRTC connection to ElevenLabs
+               Voice-to-voice runs directly Browser ↔ ElevenLabs
 ```
 
-### 2. Post-Interview-Processing
+### 2. Post-Interview Processing
 
 ```
-User klickt "End & Process"
+User clicks "End & Process"
   │
   └─ POST /api/sessions/:id/end  { transcript, duration }
       │
@@ -261,211 +296,182 @@ User klickt "End & Process"
           │
           ├─ HuggingFace LLM (createHfChatCompletion)
           │   Prompt: EXTRACTOR_PROMPT  →  JSON { cards: [...] }
-          │   Extrahiert: topic, content, tags[], importance, confidence
+          │   Extracts: topic, content, tags[], importance, confidence
           │
-          ├─ Transkript in transcript_segments parsen
+          ├─ Transcript parsed into transcript_segments
           │   Format: [HH:MM:SS] AI/Employee: Text
           │
-          └─ Für jede Knowledge-Card:
+          └─ For each Knowledge Card:
                embedding.createEmbedding(topic + content)
-               → HuggingFace sentence-transformers
-               → vector(1536)
-               → INSERT INTO knowledge_cards
+               → HuggingFace sentence-transformers (384-dim)
+               → INSERT INTO knowledge_cards (with embedding)
 ```
 
-### 3. RAG-Chatbot
+### 3. RAG Chatbot
 
 ```
-User stellt Frage in /app/knowledge (Chatbot)
+User asks question in /app/knowledge (Chatbot)
   │
   └─ POST /api/chat/ask  { question }
       │
-      ├─ embedding.createEmbedding(question)  →  vector(1536)
+      ├─ embedding.createEmbedding(question)  →  vector(384)
       │
-      ├─ supabase.rpc('search_knowledge', {
-      │     query_embedding, match_threshold: 0.65, match_count: 5
-      │   })
-      │   → pgvector: cosine similarity gegen alle knowledge_cards.embedding
-      │   → gibt top-5 ähnlichste Cards zurück (mit expert_name, department)
+      ├─ db.execute(sql`SELECT * FROM search_knowledge(...)`)
+      │   → pgvector: cosine similarity against all knowledge_cards.embedding
+      │   → returns top-5 most similar cards (with expert_name, department)
       │
       └─ HuggingFace LLM (createHfChatCompletion)
             System: buildChatbotPrompt(context)
             User: question
-            → Antwort mit Quellen-Referenzen
+            → Answer with source references
 ```
 
 ---
 
-## ElevenLabs-Integration
+## ElevenLabs Integration
 
-### Agent-Konfiguration
+### Agent Configuration
 
 - **Agent ID:** `agent_8901kkq04wagefmr6qtbvw8ab0z2`
-- **Widget Script:** `https://unpkg.com/@elevenlabs/convai-widget-embed`
+- **Frontend SDK:** `@elevenlabs/react` useConversation hook
 - **System Prompt:** `backend/src/prompts/interviewer.ts`
 
-Der Interviewer-Prompt unterstützt dynamische Variablen via Template-Replacement:
-```
-{{name}}      → Mitarbeitername aus der Session
-{{fachgebiet}} → Rolle/Spezialisierung des Mitarbeiters
-```
+### Signed URL Flow (Security)
 
-### Signed URL Flow (Sicherheit)
-
-Der ElevenLabs API-Key wird **niemals** an den Browser weitergegeben. Das Backend holt die Signed URL und gibt nur diese temporäre URL zurück:
+The ElevenLabs API key is **never** sent to the browser. The backend fetches the signed URL and returns only the temporary URL:
 
 ```
 Frontend  →  GET /api/sessions/:id/token  →  Backend
 Backend   →  GET api.elevenlabs.io/v1/convai/conversation/get-signed-url
-             (xi-api-key im Server-Header)
+             (xi-api-key in server header)
 Backend   →  { signed_url: "wss://..." }  →  Frontend
 Frontend  →  useConversation().startSession({ signedUrl })
 ```
 
-### Dynamischer Prompt-Override (ausstehend)
-
-Voraussetzung: Im ElevenLabs Dashboard "Allow prompt overrides" aktivieren.
-
-```ts
-const conversation = useConversation({
-  overrides: {
-    agent: {
-      prompt: { prompt: buildInterviewerPrompt(employeeName, employeeRole) },
-      firstMessage: buildFirstMessage(employeeName, employeeRole),
-      language: 'de',
-    }
-  }
-});
-```
-
 ---
 
-## Authentifizierung & Rollen
+## Authentication & Roles
 
 ```
 POST /api/auth/register
   │
-  ├─ supabase.auth.admin.createUser()  →  Supabase Auth User
+  ├─ bcrypt.hash(password, 12)  →  password_hash stored in users table
   │
-  ├─ Domain-Matching:
-  │   email == *@acme.com  +  Workspace mit domain='acme.com' existiert?
-  │   JA  → Workspace beitreten (role: 'member')
-  │   NEIN → neuen Workspace erstellen (role: 'owner')
+  ├─ Domain matching:
+  │   email == *@acme.com  +  workspace with domain='acme.com' exists?
+  │   YES → Join workspace (role: 'member')
+  │   NO  → Create new workspace (role: 'owner')
   │
-  └─ db.insert(users)  { id = supabase_auth_id, workspaceId, role }
+  └─ db.insert(users)  { id = auto-generated UUID, workspaceId, role }
+     → Returns JWT access token (7-day expiry)
 
 
-Jeder API-Request:
-  Authorization: Bearer <supabase_jwt>
+Every API request:
+  Authorization: Bearer <jwt>
     │
     └─ requireAuth middleware:
-        supabase.auth.getUser(token)
-        → req.userId = user.id
-        → alle Queries werden automatisch workspace-gefiltert
+        jwt.verify(token, JWT_SECRET)
+        → req.userId = payload.sub
+        → All queries are workspace-filtered
 ```
 
 ---
 
-## Datenbankschema & Migrations-Workflow
+## Database Schema & Migration Workflow
 
-Das Schema in `backend/src/db/schema.ts` ist der einzige Stand der Wahrheit.
+The schema in `backend/src/db/schema.ts` is the single source of truth.
 
 ```bash
-# Schema-Änderung deployen:
+# Deploy schema changes:
 cd backend
 npm run db:push
 # = npx drizzle-kit push --force && npx tsx src/db/enable-rls.ts
 
-# Nur RLS neu aktivieren (nach manuellem DB-Eingriff):
-npm run db:rls
+# Only recreate indexes + search functions:
+npm run db:setup
 ```
 
-**Warum `enable-rls.ts`?**  
-`drizzle-kit push` setzt RLS bei jedem Push zurück. Das Script `src/db/enable-rls.ts` wird deshalb automatisch danach ausgeführt und:
-- Aktiviert RLS auf allen 13 Tabellen
-- Erstellt `service_role` + `postgres` Full-Access-Policies
-- Erstellt 5 Indizes (workspace_id, status, document_id etc.)
-- Erstellt die pgvector-Suchfunktionen `search_knowledge` und `search_knowledge_by_category`
+**What does `enable-rls.ts` do?**
+`drizzle-kit push` may reset custom SQL objects. The script `src/db/enable-rls.ts` runs after push and:
+- Creates the `vector` extension (`CREATE EXTENSION IF NOT EXISTS vector`)
+- Creates 5 indexes (workspace_id, status, document_id, source, category)
+- Creates pgvector search functions `search_knowledge` and `search_knowledge_by_category`
 
-### pgvector-Suchfunktionen
+### pgvector Search Functions
 
 ```sql
--- Globale semantische Suche:
-search_knowledge(query_embedding vector, match_threshold float, match_count int)
+-- Global semantic search:
+search_knowledge(query_embedding vector(384), match_threshold float, match_count int)
   → id, topic, content, importance, similarity, expert_name, expert_department
 
--- Kategorie-gefilterte Suche:
-search_knowledge_by_category(query_embedding vector, category_filter text,
+-- Category-filtered search:
+search_knowledge_by_category(query_embedding vector(384), category_filter text,
                               match_threshold float, match_count int)
 ```
 
 ---
 
-## Frontend-Struktur
+## Frontend Structure
 
 ```
 frontend/src/
-├── main.tsx                  # App-Einstiegspunkt
-├── App.tsx                   # Router-Setup (public + app/*)
+├── main.tsx                  # App entry point
+├── App.tsx                   # Router setup (public + app/*)
 ├── lib/
-│   ├── api.ts                # Zentraler API-Client (alle fetch-Calls, Auth-Header)
-│   └── utils.ts              # cn() + Hilfsfunktionen
+│   ├── api.ts                # Central API client (all fetch calls, auth header)
+│   └── utils.ts              # cn() + helpers
 ├── hooks/
-│   ├── useAuth.tsx           # Auth-State (Login, Register, User-Objekt)
-│   ├── useApi.ts             # TanStack Query Wrapper
-│   └── use-toast.ts          # Toast-Notifications
+│   ├── useAuth.tsx           # Auth state (login, register, user object)
+│   ├── useApi.ts             # TanStack Query wrapper
+│   └── useSettings.ts        # Workspace settings hook
 ├── pages/
-│   ├── Landing.tsx           # Marketing-Landing-Page (interaktive Transcript-Demo, Carousel)
-│   ├── Dashboard.tsx         # App-Dashboard (aktuelle Sessions, Employees)
-│   ├── Employees.tsx         # Mitarbeiterliste
-│   ├── EmployeeDetail.tsx    # Mitarbeiter-Detail mit Sessions
-│   ├── Sessions.tsx          # Alle Interview-Sessions
-│   ├── SessionDetail.tsx     # Session-Detail (Start, Review, Classification)
-│   ├── Interview.tsx         # Live-Interview (ElevenLabs Widget)
-│   ├── ProcessingStatus.tsx  # Post-Interview AI-Processing-Status
-│   ├── TranscriptReview.tsx  # Transkript reviewen + freigeben
-│   ├── KnowledgeBase.tsx     # Knowledge-Cards + RAG-Chatbot
-│   ├── Analytics.tsx         # Coverage, Gaps, KPIs
-│   ├── Reports.tsx           # Report-Übersicht
-│   └── Settings.tsx          # Workspace-Einstellungen
+│   ├── Landing.tsx           # Marketing landing page
+│   ├── Dashboard.tsx         # App dashboard
+│   ├── Employees.tsx         # Employee list
+│   ├── EmployeeDetail.tsx    # Employee detail with sessions
+│   ├── Sessions.tsx          # All interview sessions
+│   ├── SessionDetail.tsx     # Session detail (start, review, classification)
+│   ├── Interview.tsx         # Live interview (ElevenLabs useConversation)
+│   ├── ProcessingStatus.tsx  # Post-interview AI processing status
+│   ├── TranscriptReview.tsx  # Transcript review + approval
+│   ├── KnowledgeBase.tsx     # Knowledge cards + RAG chatbot
+│   ├── Analytics.tsx         # Coverage, gaps, KPIs
+│   ├── Reports.tsx           # Report overview
+│   └── Settings.tsx          # Workspace settings
 ├── components/
-│   ├── layout/
-│   │   ├── AppLayout.tsx     # App-Shell (Sidebar + TopNav)
-│   │   ├── AppSidebar.tsx    # Navigations-Sidebar
-│   │   └── TopNav.tsx        # Obere Leiste
-│   ├── common/
-│   │   ├── StatCard.tsx      # KPI-Karte
-│   │   └── StatusBadge.tsx   # Status-Badge (session_status, risk_level etc.)
-│   ├── shared/
-│   │   └── CostSimulation.tsx  # Interaktiver Kostenvergleich (Landing)
-│   └── ui/                   # shadcn/ui Komponenten (button, card, dialog, ...)
-└── data/
-    └── mockData.ts           # Demo-Mode Daten
+│   ├── layout/               # AppLayout, AppSidebar, TopNav
+│   ├── common/               # StatCard, StatusBadge
+│   ├── shared/               # CostSimulation (landing page)
+│   └── ui/                   # shadcn/ui components
+└── test/
+    ├── api.test.ts
+    ├── utils.test.ts
+    └── useAuth.test.tsx
 ```
 
-### Design-System
+### Design System
 
-- **Schärfe:** Keine `rounded-*` Klassen in App-Seiten — kompromisslos eckig
-- **Typografie:** `text-[13px]` für Body, `font-medium` / `font-semibold`
-- **Avatare:** `w-7 h-7 bg-foreground text-background` — invertierte quadratische Initialen
-- **Farbschema:** Monochrom Schwarz/Weiß mit `border-border` — editorial, kein Buntes
+- **Corners:** No `rounded-*` classes in app pages — sharp edges throughout
+- **Typography:** `text-[13px]` for body, `font-medium` / `font-semibold`
+- **Avatars:** `w-7 h-7 bg-foreground text-background` — inverted square initials
+- **Color scheme:** Monochrome black/white with `border-border` — editorial, no colors
 
 ---
 
-## Umgebungsvariablen
+## Environment Variables
 
-### Backend (`backend/.env`)
+### Root `.env` (shared by all services)
 
 ```env
-# Supabase Pooler (IPv4, Session Mode)
-DATABASE_URL=postgresql://postgres.[ref]:[password]@aws-1-eu-central-1.pooler.supabase.com:5432/postgres
+# PostgreSQL
+POSTGRES_PASSWORD=vault_secret
+DATABASE_URL=postgresql://vault:vault_secret@localhost:5432/legacy_ai_vault
 
-# Supabase JS Client (für Auth + Vector-RPC)
-SUPABASE_URL=https://[ref].supabase.co
-SUPABASE_SERVICE_KEY=eyJ...
+# Authentication
+JWT_SECRET=change-me-to-a-random-64-char-string
 
 # ElevenLabs
-ELEVENLABS_API_KEY=...
+ELEVENLABS_API_KEY=xi_...
 ELEVENLABS_AGENT_ID=agent_8901kkq04wagefmr6qtbvw8ab0z2
 
 # HuggingFace (LLM + Embeddings)
@@ -474,631 +480,150 @@ HUGGINGFACE_API_TOKEN=hf_...
 # Server
 PORT=3001
 FRONTEND_URL=http://localhost:8080
+AI_SERVICE_URL=http://localhost:5000
+
+# Storage
+UPLOADS_DIR=./uploads
 ```
 
 ### Frontend
 
-Kein `.env` nötig — der API-Endpunkt ist in `src/lib/api.ts` auf `http://localhost:3001` hardcodiert (Dev). Für Production: `VITE_API_URL` via Vite.
+No `.env` needed — the API endpoint is configured via `VITE_API_URL` (defaults to `http://localhost:3001` in dev). For Docker/production: set via environment or `vercel.json` rewrites.
 
 ---
 
-## Entwicklung starten
+## Getting Started
 
-### Voraussetzungen
-
-- Node.js 20+
-- Supabase-Projekt mit pgvector-Extension
-- ElevenLabs-Account mit konfiguriertem Agent
-- HuggingFace API Token
-
-### Backend
+### With Docker (recommended)
 
 ```bash
-cd backend
-npm install
-cp .env.example .env   # Variablen eintragen
-npm run dev            # Port 3001, hot-reload via ts-node-dev
+cp .env.example .env
+# Edit .env with your API keys (HUGGINGFACE_API_TOKEN, ELEVENLABS_*, JWT_SECRET)
+
+docker compose up --build
+# PostgreSQL starts first (with health check)
+# Backend waits for healthy postgres, then starts on :3001
+# Frontend on :8080, AI service on :5000
 ```
 
-### Frontend
+Initialize the database (first time only):
+```bash
+docker compose exec backend npx drizzle-kit push --force
+docker compose exec backend npx tsx src/db/enable-rls.ts
+```
+
+### Local Development
+
+**Prerequisites:** Node.js 20+, Python 3.9+, PostgreSQL 16 with pgvector
 
 ```bash
+# Backend
+cd backend
+npm install
+npm run dev            # Port 3001, hot-reload via ts-node-dev
+
+# Frontend
 cd frontend
 npm install
-npm run dev            # Port 8080
-```
+npm run dev            # Port 5173 (Vite dev server)
 
-### Datenbank initialisieren
+# AI Service
+cd ai_service
+pip install -r requirements.txt
+python app.py          # Port 5000
 
-```bash
-cd backend
-npm run db:push        # Schema pushen + RLS aktivieren
+# Database
+npm run db:push        # Push schema + create indexes & functions
 ```
 
 ### Scripts
 
-| Befehl | Beschreibung |
+| Command | Description |
 |---|---|
-| `npm run dev` | Development-Server starten |
-| `npm run build` | TypeScript kompilieren |
-| `npm run db:push` | Schema nach Supabase pushen + RLS aktivieren |
-| `npm run db:rls` | Nur RLS + Policies + Suchfunktionen neu erstellen |
+| `npm run dev` | Start development server |
+| `npm run build` | Compile TypeScript |
+| `npm test` | Run tests (vitest) |
+| `npm run test:watch` | Run tests in watch mode |
+| `npm run test:coverage` | Run tests with coverage report |
+| `npm run db:push` | Push schema to Postgres + create indexes & search functions |
+| `npm run db:setup` | Only recreate indexes + search functions |
+| `npm run db:generate` | Generate Drizzle migration files |
 
 ---
 
-## Wichtige Architekturentscheidungen
+## Key Architecture Decisions
 
-| Entscheidung | Begründung |
+| Decision | Reasoning |
 |---|---|
-| Drizzle ORM statt Prisma | Direkter SQL-Zugriff, besser für pgvector custom types, kein Schema-Drift |
-| Zwei DB-Clients (postgres + supabase-js) | `postgres`-Treiber für alle CRUD-Ops; `supabase-js` exklusiv für `auth.getUser()` + pgvector-RPCs |
-| Backend als Auth-Proxy für ElevenLabs | API-Key nie im Browser — signed URL server-seitig geholt |
-| RLS mit service_role | Backend nutzt `service_role`, umgeht RLS bewusst — RLS ist Sicherheitsnetz für direkte DB-Zugriffe |
-| Push-Migrationen statt Generate | Hackathon-tempo — `drizzle-kit push --force` direkt gegen Supabase, kein Migration-File-Management |
+| Drizzle ORM over Prisma | Direct SQL access, better for pgvector custom types, no schema drift |
+| Local PostgreSQL via Docker | Full control over database, no external dependency, pgvector pre-installed |
+| bcrypt + JWT over managed auth | Self-contained deployment, no vendor lock-in, simpler Docker setup |
+| Local filesystem for uploads | No external storage dependency, Docker volume for persistence |
+| HuggingFace over OpenAI | Cost-effective inference via Router API, open models (Qwen/Qwen2.5-72B) |
+| Backend as auth proxy for ElevenLabs | API key never in browser — signed URL fetched server-side |
+| Push migrations over generate | Rapid development — `drizzle-kit push --force` directly against Postgres |
+| `hf.service.ts` as HF wrapper | Single point of configuration for all HuggingFace API calls |
 
 ---
 
-**Repository:** [github.com/Luraxx/legacy_ai_vault](https://github.com/Luraxx/legacy_ai_vault)
-ENDOFFILE`, and this is the output of running that command instead:
-luis@172-10-175-59 legacy_ai_vault %  cat > /Users/luis/Documents/Curserxthinc/legacy_ai_vault/README.m
-d << 'ENDOFFILE'
-# LegacyAI Vault
+## Testing
 
-> Knowledge capture platform — KI-gestütztes Offboarding-Interview-System für Unternehmen
+115 automated tests across backend and frontend.
 
-Enterprise SaaS-Plattform, die implizites Expertenwissen ausscheidender Mitarbeiter per Voice-
-AI-Interview extrahiert, strukturiert, in einer durchsuchbaren Wissensdatenbank speichert und per RAG-C
-hatbot abrufbar macht.
-
----
-
-## Inhaltsverzeichnis
-
-- [Tech-Stack](#tech-stack)
-- [Systemarchitektur](#systemarchitektur)
-- [Datenmodell](#datenmodell)
-- [Backend — API-Routen](#backend--api-routen)
-- [AI-Pipeline](#ai-pipeline)
-- [ElevenLabs-Integration](#elevenlabs-integration)
-- [Authentifizierung & Rollen](#authentifizierung--rollen)
-- [Datenbankschema & Migrations-Workflow](#datenbankschema--migrations-workflow)
-- [Frontend-Struktur](#frontend-struktur)
-- [Umgebungsvariablen](#umgebungsvariablen)
-- [Entwicklung starten](#entwicklung-starten)
-
----
-
-## Tech-Stack
-
-### Frontend
-
-| Technologie | Version | Zweck |
-|---|---|---|
-| React | 18.3 | UI-Framework |
-| TypeScript | 5.3 | Typsicherheit |
-| Vite | 6.x | Build-Tool, Dev-Server (Port 8080) |
-| React Router v6 | 6.30 | Client-seitiges Routing (SPA) |
-| TanStack Query | 5.x | Server-State-Management, Caching |
-| shadcn/ui + Radix UI | — | Komponentenbibliothek (headless, vollständig angepasst) |
-| Tailwind CSS | 3.x | Utility-first Styling |
-| Framer Motion | 12.x | Animationen |
-| React Hook Form | 7.x | Formularverwaltung |
-| `@elevenlabs/react` | 0.14 | ElevenLabs React SDK (useConversation Hook) |
-
-### Backend
-
-| Technologie | Version | Zweck |
-|---|---|---|
-| Node.js + Express | 4.18 | HTTP-Server (Port 3001) |
-| TypeScript | 5.3 | Typsicherheit |
-| ts-node-dev | 2.x | Hot-Reload in Entwicklung |
-| Drizzle ORM | 0.45.1 | Typsicherer Datenbankzugriff |
-| drizzle-kit | 0.31.9 | Schema-Migrationen (push-basiert) |
-| postgres | 3.4 | PostgreSQL-Treiber (raw, pooled) |
-| `@supabase/supabase-js` | 2.x | Auth-Token-Validierung + Vector-RPC-Calls |
-
-### Datenbank & Infrastruktur
-
-| Technologie | Zweck |
-|---|---|
-| **Supabase (PostgreSQL)** | Primäre Datenbank, Auth, Row Level Security |
-| **pgvector** | 1536-dim. Embedding-Vektoren in `knowledge_cards.embedding` |
-| **Supabase Auth** | JWT-basierte Authentifizierung |
-| **Supabase Storage** | Dokument-Uploads (PDF, DOCX) |
-
-### Externe AI-Services
-
-| Service | Zweck |
-|---|---|
-| **ElevenLabs Conversational AI** | Voice-to-Voice KI-Interviewer (Agent `agent_8901kkq04wage
-fmr6qtbvw8ab0z2`) |
-| **Hugging Face Inference API** | LLM für Knowledge-Extraction (Extractor-Prompt) + RAG-Chatb
-ot-Antworten |
-| **Hugging Face Embeddings** | `sentence-transformers` → 1536-dim. Vektoren für semantische S
-uche |
-
----
-
-## Systemarchitektur
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  BROWSER  (React SPA, Port 8080)                                │
-│                                                                 │
-│  Landing / Marketing   App (auth-protected)                     │
-│  ├── /                 ├── /app/dashboard                       │
-│  ├── /pricing          ├── /app/employees                       │
-│  ├── /blog             ├── /app/sessions                        │
-│  └── /register         ├── /app/sessions/:id/interview  ←────┐  │
-│                        ├── /app/sessions/:id/review           │  │
-│                        ├── /app/knowledge                     │  │
-│                        └── /app/analytics                     │  │
-└──────────────────────────────────┬──────────────────────────┬─┘  │
-                                   │ REST API                 │    │
-                                   ▼                          │    │
-┌──────────────────────────────────────────────────────┐      │    │
-│  BACKEND  (Express, Port 3001)                       │      │    │
-│                                                      │      │    │
-│  requireAuth (Supabase JWT)                          │      │    │
-│       │                                              │      │    │
-│  ┌────▼──────────────────────────────────────────┐   │      │    │
-│  │  API-Router                                   │   │      │    │
-│  │  /api/auth        /api/employees              │   │      │    │
-│  │  /api/sessions    /api/knowledge              │   │      │    │
-│  │  /api/analytics   /api/chat                   │   │      │    │
-│  │  /api/reports     /api/activity               │   │      │    │
-│  └────────────────────┬──────────────────────────┘   │      │    │
-│                       │                              │      │    │
-│  ┌────────────────────▼──────────────────────────┐   │      │    │
-│  │  Services                                     │   │      │    │
-│  │  extraction.service  → HuggingFace LLM        │   │      │    │
-│  │  embedding.service   → HuggingFace Embeddings │   │      │    │
-│  │  chat.service        → HuggingFace + pgvector │   │      │    │
-│  │  elevenlabs.service  → ElevenLabs REST API    │   │      │    │
-│  └────────────────────┬──────────────────────────┘   │      │    │
-│                       │                              │      │    │
-│  ┌────────────────────▼──────────────────────────┐   │      │    │
-│  │  Drizzle ORM   ←──── schema.ts (source of     │   │      │    │
-│  │  postgres driver         truth für DB)        │   │      │    │
-└──┼────────────────────┼──────────────────────────┘   │      │    │
-   │                    │                              │      │    │
-   ▼                    ▼                              │      │    │
-┌──────────────────┐  ┌────────────────────────────┐  │      │    │
-│  Supabase Auth   │  │  Supabase PostgreSQL        │  │      │    │
-│  (JWT-Validier.) │  │  + pgvector Extension       │  │      │    │
-│                  │  │  + RLS (service_role)        │  │      │    │
-└──────────────────┘  └────────────────────────────┘  │      │    │
-                                                       │      │    │
-┌──────────────────────────────────────────────────────┘      │    │
-│  ElevenLabs  (extern)                                        │    │
-│  ├── GET /v1/convai/conversation/get-signed-url              │    │
-│  │        ↑ aufgerufen von /api/sessions/:id/token           │    │
-│  │                                                           │    │
-│  └── WebSocket/WebRTC Widget  ←───────────────────────────────────┘
-│       voice ↔ voice, direkt Browser ↔ ElevenLabs
-└──────────────────────────────────────────────────────────────┘
-```
-
----
-
-## Datenmodell
-
-13 Tabellen, alle in `backend/src/db/schema.ts` definiert. Drizzle ist **Single Source of Trut
-h**.
-
-```
-workspaces          (id, name, company_name, domain, industry)
-    │
-    ├── users       (id=supabase_auth_id, email, full_name, role, workspace_id)
-    │
-    ├── employees   (id, workspace_id, name, role, department, exit_date,
-    │                session_status, transcript_status, coverage_score, risk_level)
-    │
-    ├── sessions    (id, workspace_id, employee_id, status, transcript,
-    │                elevenlabs_conversation_id, report_html_path, ...)
-    │   │
-    │   ├── transcript_segments  (id, session_id, timestamp, speaker, text, order_index)
-    │   │
-    │   └── knowledge_cards      (id, session_id, employee_id, topic, content,
-    │                             category, tags[], importance, confidence,
-    │                             embedding vector(1536),  ← pgvector
-    │                             document_id, source)
-    │
-    ├── documents   (id, workspace_id, uploaded_by, filename, mime_type,
-    │                storage_path, category, status)
-    │
-    ├── knowledge_categories  (id, workspace_id, name, icon, status)
-    ├── reports               (id, workspace_id, session_id, employee_id, title, content)
-    ├── chat_messages         (id, session_id, role, content, sources[])
-    ├── activities            (id, workspace_id, type, message)
-    ├── api_keys              (id, workspace_id, ...)
-    └── workspace_settings    (id, workspace_id, ...)
-```
-
-### Rollen-Hierarchie (users.role)
-
-```
-admin      → Plattform-Admin (Luigi-intern)
-owner      → Workspace-Ersteller (Unternehmens-Owner)
-member     → regulärer Mitarbeiter
-reviewer   → kann Transkripte freigeben
-viewer     → read-only
-```
-
----
-
-## Backend — API-Routen
-
-Alle Routen unter `/api/` sind durch `requireAuth` geschützt (einzige Ausnahme: `POST /api/aut
-h/register`, `POST /api/auth/login`).
-
-### Auth (`/api/auth`)
-| Method | Pfad | Beschreibung |
-|---|---|---|
-| POST | `/register` | Supabase Auth User erstellen + Workspace anlegen oder beitreten (domain
--matching) |
-| POST | `/login` | Supabase signInWithPassword → JWT zurück |
-| GET | `/me` | Aktueller User + Workspace |
-
-### Sessions (`/api/sessions`)
-| Method | Pfad | Beschreibung |
-|---|---|---|
-| GET | `/` | Alle Sessions des Workspaces (mit Employee-Join) |
-| POST | `/` | Neue Session erstellen (mit oder ohne employeeId) |
-| GET | `/:id` | Session-Detail |
-| POST | `/:id/start` | Status → `in_progress`, Employee-Status aktualisieren |
-| GET | `/:id/token` | **Signed URL von ElevenLabs API** holen (xi-api-key server-seitig) |
-| POST | `/:id/end` | Session beenden, AI-Processing triggern |
-| GET | `/:id/transcript` | Transkript + Segmente abrufen |
-| PUT | `/:id/transcript/approve` | Transkript freigeben |
-| GET | `/:id/processing` | Processing-Status polling |
-| GET | `/:id/classification` | Knowledge-Cards der Session |
-
-### Knowledge (`/api/knowledge`)
-| Method | Pfad | Beschreibung |
-|---|---|---|
-| GET | `/categories` | Alle Knowledge-Kategorien |
-| GET | `/cards` | Alle Knowledge-Cards (filterbar) |
-| POST | `/cards` | Knowledge-Card manuell erstellen |
-| GET | `/search` | Semantische Suche via Supabase pgvector RPC |
-
-### Weitere
-| Route | Beschreibung |
-|---|---|
-| `/api/analytics/coverage` | Department-Coverage-Metriken |
-| `/api/analytics/gaps` | Mitarbeiter mit geringer Coverage + Risk-Level |
-| `/api/analytics/summary` | Dashboard-KPIs |
-| `/api/chat/ask` | RAG-Chatbot: Frage → Embedding → pgvector → LLM |
-| `/api/chat/history/:sessionId` | Chat-Verlauf |
-| `/api/reports` | Report-CRUD |
-| `/api/employees` | Employee-CRUD |
-| `/api/activity` | Activity-Feed |
-
----
-
-## AI-Pipeline
-
-### 1. Interview-Phase (ElevenLabs)
-
-```
-User öffnet /app/sessions/:id/interview
-  │
-  ├─ Frontend: api.startSession(id)  →  POST /api/sessions/:id/start
-  │                                      (Status → in_progress)
-  │
-  ├─ Frontend: api.getSessionToken(id) →  GET /api/sessions/:id/token
-  │   Backend: GET https://api.elevenlabs.io/v1/convai/conversation/get-signed-url
-  │            Header: xi-api-key (server-seitig, nie im Browser)
-  │            → signed_url zurück
-  │
-  └─ Frontend: useConversation().startSession({ signedUrl })
-               WebSocket/WebRTC Verbindung zu ElevenLabs
-               Voice-to-Voice läuft direkt Browser ↔ ElevenLabs
-```
-
-### 2. Post-Interview-Processing
-
-```
-User klickt "End & Process"
-  │
-  └─ POST /api/sessions/:id/end  { transcript, duration }
-      │
-      ├─ elevenlabs.getLatestConversationId(agentId)
-      │   → ElevenLabs REST: GET /v1/convai/conversations
-      │
-      ├─ elevenlabs.getConversationTranscript(conversationId)
-      │   → ElevenLabs REST: GET /v1/convai/conversations/:id
-      │
-      └─ extraction.extractKnowledge(sessionId, employeeId, transcript)
-          │
-          ├─ HuggingFace LLM (createHfChatCompletion)
-          │   Prompt: EXTRACTOR_PROMPT  →  JSON { cards: [...] }
-          │   Extrahiert: topic, content, tags[], importance, confidence
-          │
-          ├─ Transkript in transcript_segments parsen
-          │   Format: [HH:MM:SS] AI/Employee: Text
-          │
-          └─ Für jede Knowledge-Card:
-               embedding.createEmbedding(topic + content)
-               → HuggingFace sentence-transformers
-               → vector(1536)
-               → INSERT INTO knowledge_cards
-```
-
-### 3. RAG-Chatbot
-
-```
-User stellt Frage in /app/knowledge (Chatbot)
-  │
-  └─ POST /api/chat/ask  { question }
-      │
-      ├─ embedding.createEmbedding(question)  →  vector(1536)
-      │
-      ├─ supabase.rpc('search_knowledge', {
-      │     query_embedding, match_threshold: 0.65, match_count: 5
-      │   })
-      │   → pgvector: cosine similarity gegen alle knowledge_cards.embedding
-      │   → gibt top-5 ähnlichste Cards zurück (mit expert_name, department)
-      │
-      └─ HuggingFace LLM (createHfChatCompletion)
-            System: buildChatbotPrompt(context)
-            User: question
-            → Antwort mit Quellen-Referenzen
-```
-
----
-
-## ElevenLabs-Integration
-
-### Agent-Konfiguration
-
-- **Agent ID:** `agent_8901kkq04wagefmr6qtbvw8ab0z2`
-- **Widget Script:** `https://unpkg.com/@elevenlabs/convai-widget-embed`
-- **System Prompt:** `backend/src/prompts/interviewer.ts`
-
-Der Interviewer-Prompt unterstützt dynamische Variablen via Template-Replacement:
-```
-{{name}}      → Mitarbeitername aus der Session
-{{fachgebiet}} → Rolle/Spezialisierung des Mitarbeiters
-```
-
-### Signed URL Flow (Sicherheit)
-
-Der ElevenLabs API-Key wird **niemals** an den Browser weitergegeben. Das Backend holt die Sig
-ned URL und gibt nur diese temporäre URL zurück:
-
-```
-Frontend  →  GET /api/sessions/:id/token  →  Backend
-Backend   →  GET api.elevenlabs.io/v1/convai/conversation/get-signed-url
-             (xi-api-key im Server-Header)
-Backend   →  { signed_url: "wss://..." }  →  Frontend
-Frontend  →  useConversation().startSession({ signedUrl })
-```
-
-### Dynamischer Prompt-Override (ausstehend)
-
-Voraussetzung: Im ElevenLabs Dashboard "Allow prompt overrides" aktivieren.
-
-```ts
-const conversation = useConversation({
-  overrides: {
-    agent: {
-      prompt: { prompt: buildInterviewerPrompt(employeeName, employeeRole) },
-      firstMessage: buildFirstMessage(employeeName, employeeRole),
-      language: 'de',
-    }
-  }
-});
-```
-
----
-
-## Authentifizierung & Rollen
-
-```
-POST /api/auth/register
-  │
-  ├─ supabase.auth.admin.createUser()  →  Supabase Auth User
-  │
-  ├─ Domain-Matching:
-  │   email == *@acme.com  +  Workspace mit domain='acme.com' existiert?
-  │   JA  → Workspace beitreten (role: 'member')
-  │   NEIN → neuen Workspace erstellen (role: 'owner')
-  │
-  └─ db.insert(users)  { id = supabase_auth_id, workspaceId, role }
-
-
-Jeder API-Request:
-  Authorization: Bearer <supabase_jwt>
-    │
-    └─ requireAuth middleware:
-        supabase.auth.getUser(token)
-        → req.userId = user.id
-        → alle Queries werden automatisch workspace-gefiltert
-```
-
----
-
-## Datenbankschema & Migrations-Workflow
-
-Das Schema in `backend/src/db/schema.ts` ist der einzige Stand der Wahrheit.
-
-```bash
-# Schema-Änderung deployen:
-cd backend
-npm run db:push
-# = npx drizzle-kit push --force && npx tsx src/db/enable-rls.ts
-
-# Nur RLS neu aktivieren (nach manuellem DB-Eingriff):
-npm run db:rls
-```
-
-**Warum `enable-rls.ts`?**  
-`drizzle-kit push` setzt RLS bei jedem Push zurück. Das Script `src/db/enable-rls.ts` wird des
-halb automatisch danach ausgeführt und:
-- Aktiviert RLS auf allen 13 Tabellen
-- Erstellt `service_role` + `postgres` Full-Access-Policies
-- Erstellt 5 Indizes (workspace_id, status, document_id etc.)
-- Erstellt die pgvector-Suchfunktionen `search_knowledge` und `search_knowledge_by_category`
-
-### pgvector-Suchfunktionen
-
-```sql
--- Globale semantische Suche:
-search_knowledge(query_embedding vector, match_threshold float, match_count int)
-  → id, topic, content, importance, similarity, expert_name, expert_department
-
--- Kategorie-gefilterte Suche:
-search_knowledge_by_category(query_embedding vector, category_filter text,
-                              match_threshold float, match_count int)
-```
-
----
-
-## Frontend-Struktur
-
-```
-frontend/src/
-├── main.tsx                  # App-Einstiegspunkt
-├── App.tsx                   # Router-Setup (public + app/*)
-├── lib/
-│   ├── api.ts                # Zentraler API-Client (alle fetch-Calls, Auth-Header)
-│   └── utils.ts              # cn() + Hilfsfunktionen
-├── hooks/
-│   ├── useAuth.tsx           # Auth-State (Login, Register, User-Objekt)
-│   ├── useApi.ts             # TanStack Query Wrapper
-│   └── use-toast.ts          # Toast-Notifications
-├── pages/
-│   ├── Landing.tsx           # Marketing-Landing-Page (interaktive Transcript-Demo, Carousel)
-
-│   ├── Dashboard.tsx         # App-Dashboard (aktuelle Sessions, Employees)
-│   ├── Employees.tsx         # Mitarbeiterliste
-│   ├── EmployeeDetail.tsx    # Mitarbeiter-Detail mit Sessions
-│   ├── Sessions.tsx          # Alle Interview-Sessions
-│   ├── SessionDetail.tsx     # Session-Detail (Start, Review, Classification)
-│   ├── Interview.tsx         # Live-Interview (ElevenLabs Widget)
-│   ├── ProcessingStatus.tsx  # Post-Interview AI-Processing-Status
-│   ├── TranscriptReview.tsx  # Transkript reviewen + freigeben
-│   ├── KnowledgeBase.tsx     # Knowledge-Cards + RAG-Chatbot
-│   ├── Analytics.tsx         # Coverage, Gaps, KPIs
-│   ├── Reports.tsx           # Report-Übersicht
-│   └── Settings.tsx          # Workspace-Einstellungen
-├── components/
-│   ├── layout/
-│   │   ├── AppLayout.tsx     # App-Shell (Sidebar + TopNav)
-│   │   ├── AppSidebar.tsx    # Navigations-Sidebar
-│   │   └── TopNav.tsx        # Obere Leiste
-│   ├── common/
-│   │   ├── StatCard.tsx      # KPI-Karte
-│   │   └── StatusBadge.tsx   # Status-Badge (session_status, risk_level etc.)
-│   ├── shared/
-│   │   └── CostSimulation.tsx  # Interaktiver Kostenvergleich (Landing)
-│   └── ui/                   # shadcn/ui Komponenten (button, card, dialog, ...)
-└── data/
-    └── mockData.ts           # Demo-Mode Daten
-```
-
-### Design-System
-
-- **Schärfe:** Keine `rounded-*` Klassen in App-Seiten — kompromisslos eckig
-- **Typografie:** `text-[13px]` für Body, `font-medium` / `font-semibold`
-- **Avatare:** `w-7 h-7 bg-foreground text-background` — invertierte quadratische Initialen
-- **Farbschema:** Monochrom Schwarz/Weiß mit `border-border` — editorial, kein Buntes
-
----
-
-## Umgebungsvariablen
-
-### Backend (`backend/.env`)
-
-```env
-# Supabase Pooler (IPv4, Session Mode)
-DATABASE_URL=postgresql://postgres.[ref]:[password]@aws-1-eu-central-1.pooler.supabase.com:543
-2/postgres
-
-# Supabase JS Client (für Auth + Vector-RPC)
-SUPABASE_URL=https://[ref].supabase.co
-SUPABASE_SERVICE_KEY=eyJ...
-
-# ElevenLabs
-ELEVENLABS_API_KEY=...
-ELEVENLABS_AGENT_ID=agent_8901kkq04wagefmr6qtbvw8ab0z2
-
-# HuggingFace (LLM + Embeddings)
-HUGGINGFACE_API_TOKEN=hf_...
-
-# Server
-PORT=3001
-FRONTEND_URL=http://localhost:8080
-```
-
-### Frontend
-
-Kein `.env` nötig — der API-Endpunkt ist in `src/lib/api.ts` auf `http://localhost:3001` hardc
-odiert (Dev). Für Production: `VITE_API_URL` via Vite.
-
----
-
-## Entwicklung starten
-
-### Voraussetzungen
-
-- Node.js 20+
-- Supabase-Projekt mit pgvector-Extension
-- ElevenLabs-Account mit konfiguriertem Agent
-- HuggingFace API Token
-
-### Backend
+### Backend (93 tests)
 
 ```bash
 cd backend
-npm install
-cp .env.example .env   # Variablen eintragen
-npm run dev            # Port 3001, hot-reload via ts-node-dev
+npm test              # Run all tests
+npm run test:watch    # Watch mode
+npm run test:coverage # With coverage report
 ```
 
-### Frontend
+| Test File | Tests | Scope |
+|---|---|---|
+| `auth.test.ts` | 7 | JWT token creation, requireAuth middleware |
+| `logger.test.ts` | 5 | Logger functions, Error handling, JSON mode |
+| `auth.routes.test.ts` | 10 | Register/login validation, auth endpoints |
+| `chunker.test.ts` | 8 | Text chunking with sentence boundary detection |
+| `report-storage.test.ts` | 4 | Report upload (HTML/PDF), download URL generation |
+| `employee.routes.test.ts` | 6 | Employee CRUD, workspace authorization |
+| `chat.routes.test.ts` | 6 | Chat ask + history, workspace IDOR protection |
+| `analytics.routes.test.ts` | 6 | Coverage, gaps, summary endpoints |
+| `knowledge.routes.test.ts` | 14 | Knowledge CRUD, search, document upload |
+| `session.routes.test.ts` | 12 | Session lifecycle, start/end/pause/resume |
+| `integration.test.ts` | 15 | Health endpoint, helmet headers, CORS, protected routes, 404 handling |
+
+### Frontend (22 tests)
 
 ```bash
 cd frontend
-npm install
-npm run dev            # Port 8080
+npm test
 ```
 
-### Datenbank initialisieren
-
-```bash
-cd backend
-npm run db:push        # Schema pushen + RLS aktivieren
-```
-
-### Scripts
-
-| Befehl | Beschreibung |
-|---|---|
-| `npm run dev` | Development-Server starten |
-| `npm run build` | TypeScript kompilieren |
-| `npm run db:push` | Schema nach Supabase pushen + RLS aktivieren |
-| `npm run db:rls` | Nur RLS + Policies + Suchfunktionen neu erstellen |
+| Test File | Tests | Scope |
+|---|---|---|
+| `api.test.ts` | 9 | API client, auth token management, request headers |
+| `utils.test.ts` | 7 | `cn()` utility, Tailwind class merging |
+| `useAuth.test.tsx` | 6 | Auth hook, provider, token lifecycle |
 
 ---
 
-## Wichtige Architekturentscheidungen
+## Security
 
-| Entscheidung | Begründung |
+| Measure | Detail |
 |---|---|
-| Drizzle ORM statt Prisma | Direkter SQL-Zugriff, besser für pgvector custom types, kein Sche
-ma-Drift |
-| Zwei DB-Clients (postgres + supabase-js) | `postgres`-Treiber für alle CRUD-Ops; `supabase-j
-s` exklusiv für `auth.getUser()` + pgvector-RPCs |
-| Backend als Auth-Proxy für ElevenLabs | API-Key nie im Browser — signed URL server-seitig ge
-holt |
-| RLS mit service_role | Backend nutzt `service_role`, umgeht RLS bewusst — RLS ist Sicherheit
-snetz für direkte DB-Zugriffe |
-| Push-Migrationen statt Generate | Hackathon-tempo — `drizzle-kit push --force` direkt gegen 
-Supabase, kein Migration-File-Management |
+| **Helmet** | Sets secure HTTP headers (CSP, HSTS, X-Content-Type-Options, etc.) |
+| **Auth rate limiting** | 20 requests per 15 minutes on `/api/auth/login` and `/api/auth/register` |
+| **Password validation** | Minimum 8 characters required |
+| **bcrypt hashing** | 12 salt rounds for password storage |
+| **JWT auth** | 7-day expiry, server-side verification on every request |
+| **Workspace isolation** | All queries filtered by `workspaceId` — users cannot access other workspaces |
+| **Admin authorization** | Inline role check (`admin`/`owner`) on admin endpoints |
+| **Employee IDOR protection** | GET/PUT employee endpoints verify workspace membership |
+| **Chat/Session IDOR protection** | Chat and history endpoints verify session belongs to user's workspace via `authorizeSession()` |
+| **Server-side API keys** | ElevenLabs key never sent to browser — signed URL proxy pattern |
+| **Structured logging** | All route handlers log success/error via `log()`/`logError()` for audit trails |
+| **Global error handler** | Catches unhandled errors, prevents stack trace leakage |
 
 ---
-
-**Repository:** [github.com/Luraxx/legacy_ai_vault](https://github.com/Luraxx/legacy_ai_vault)
 

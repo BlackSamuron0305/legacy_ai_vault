@@ -41,7 +41,7 @@ chmod +x redeploy.sh
 
 | Service | URL | Health Check |
 |---------|-----|--------------|
-| Frontend | http://localhost:3000 | HTTP GET |
+| Frontend | http://localhost:8080 | HTTP GET |
 | Backend API | http://localhost:3001/api/health | API endpoint |
 | AI Service | http://localhost:5000/api/health | API endpoint |
 
@@ -138,24 +138,25 @@ docker-compose up --build backend
 Your `.env` file should contain:
 
 ```bash
-# Database
-DATABASE_URL=postgresql://...
-SUPABASE_URL=...
-SUPABASE_SERVICE_KEY=...
+# PostgreSQL
+POSTGRES_PASSWORD=vault_secret
+DATABASE_URL=postgresql://vault:vault_secret@localhost:5432/legacy_ai_vault
+
+# Authentication
+JWT_SECRET=change-me-to-a-random-64-char-string
 
 # AI Services
-ELEVENLABS_API_KEY=...
-ELEVENLABS_AGENT_ID=...
-HUGGINGFACE_API_TOKEN=...
+ELEVENLABS_API_KEY=xi_...
+ELEVENLABS_AGENT_ID=agent_...
+HUGGINGFACE_API_TOKEN=hf_...
 
-# Application
-NODE_ENV=development
+# Server
 PORT=3001
-FLASK_ENV=production
+FRONTEND_URL=http://localhost:8080
+AI_SERVICE_URL=http://localhost:5000
 
-# Frontend
-VITE_API_URL=http://localhost:3001/api
-VITE_AI_SERVICE_URL=http://localhost:5000/api
+# Storage
+UPLOADS_DIR=./uploads
 ```
 
 ## Development Workflow

@@ -3,6 +3,7 @@ import { db } from '../db/drizzle';
 import { workspaceSettings, users } from '../db/schema';
 import { eq } from 'drizzle-orm';
 import { requireAuth, AuthRequest } from '../middleware/auth';
+import { log, logError } from '../utils/logger';
 
 const router = Router();
 
@@ -27,6 +28,7 @@ router.get('/', requireAuth, async (req: AuthRequest, res: Response) => {
 
         res.json(settings);
     } catch (error: any) {
+        logError('Get settings failed', error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -69,8 +71,10 @@ router.put('/', requireAuth, async (req: AuthRequest, res: Response) => {
             .where(eq(workspaceSettings.workspaceId, workspaceId))
             .returning();
 
+        log('Settings updated', { workspaceId, fields: Object.keys(updates) });
         res.json(updated);
     } catch (error: any) {
+        logError('Update settings failed', error);
         res.status(500).json({ error: error.message });
     }
 });

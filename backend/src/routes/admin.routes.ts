@@ -3,6 +3,7 @@ import { db } from '../db/drizzle';
 import { users, workspaces, apiKeys } from '../db/schema';
 import { eq, and } from 'drizzle-orm';
 import { requireAuth, AuthRequest } from '../middleware/auth';
+import { log, logError } from '../utils/logger';
 
 const router = Router();
 
@@ -10,12 +11,6 @@ const router = Router();
 async function getUserContext(userId: string) {
     const [user] = await db.select().from(users).where(eq(users.id, userId));
     return { workspaceId: user?.workspaceId ?? null, role: user?.role ?? 'viewer' };
-}
-
-// Middleware: require admin role
-function requireAdmin(req: AuthRequest, res: Response, next: () => void) {
-    // Role is checked in each route after fetching user context
-    next();
 }
 
 // ===== TEAM (any authenticated user with workspace) =====
@@ -37,6 +32,7 @@ router.get('/team', requireAuth, async (req: AuthRequest, res: Response) => {
 
         res.json(members);
     } catch (error: any) {
+        logError('List team failed', error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -61,6 +57,7 @@ router.get('/members', requireAuth, async (req: AuthRequest, res: Response) => {
 
         res.json(members);
     } catch (error: any) {
+        logError('List members failed', error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -96,6 +93,7 @@ router.put('/members/:id/role', requireAuth, async (req: AuthRequest, res: Respo
 
         res.json(updated);
     } catch (error: any) {
+        logError('Update member role failed', error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -123,8 +121,10 @@ router.delete('/members/:id', requireAuth, async (req: AuthRequest, res: Respons
             .set({ workspaceId: null, role: 'viewer' })
             .where(eq(users.id, req.params.id));
 
+        log('Member removed from workspace', { memberId: req.params.id });
         res.json({ success: true });
     } catch (error: any) {
+        logError('Remove member failed', error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -148,6 +148,7 @@ router.get('/api-keys', requireAuth, async (req: AuthRequest, res: Response) => 
 
         res.json(masked);
     } catch (error: any) {
+        logError('List API keys failed', error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -184,11 +185,13 @@ router.post('/api-keys', requireAuth, async (req: AuthRequest, res: Response) =>
             }).returning();
         }
 
+        log('API key saved', { service });
         res.json({
             ...result,
             keyValue: '•'.repeat(Math.max(0, result.keyValue.length - 4)) + result.keyValue.slice(-4),
         });
     } catch (error: any) {
+        logError('Save API key failed', error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -207,8 +210,10 @@ router.delete('/api-keys/:id', requireAuth, async (req: AuthRequest, res: Respon
         }
 
         await db.delete(apiKeys).where(eq(apiKeys.id, req.params.id));
+        log('API key deleted', { keyId: req.params.id });
         res.json({ success: true });
     } catch (error: any) {
+        logError('Delete API key failed', error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -247,6 +252,7 @@ router.get('/companies', requireAuth, async (req: AuthRequest, res: Response) =>
 
         res.json(result);
     } catch (error: any) {
+        logError('List companies failed', error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -262,6 +268,7 @@ router.get('/company', requireAuth, async (req: AuthRequest, res: Response) => {
 
         res.json({ ...ws, memberCount });
     } catch (error: any) {
+        logError('Get company failed', error);
         res.status(500).json({ error: error.message });
     }
 });
@@ -284,8 +291,10 @@ router.put('/company', requireAuth, async (req: AuthRequest, res: Response) => {
             .where(eq(workspaces.id, ctx.workspaceId))
             .returning();
 
+        log('Company info updated', { workspaceId: ctx.workspaceId });
         res.json(updated);
     } catch (error: any) {
+        logError('Update company failed', error);
         res.status(500).json({ error: error.message });
     }
 });

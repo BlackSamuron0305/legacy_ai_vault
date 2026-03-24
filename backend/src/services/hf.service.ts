@@ -8,7 +8,7 @@ type ChatMessage = {
 const HF_ROUTER_BASE_URL = 'https://router.huggingface.co/v1';
 const DEFAULT_CHAT_MODEL = 'Qwen/Qwen2.5-72B-Instruct:novita';
 const DEFAULT_EMBEDDING_MODEL = 'sentence-transformers/all-MiniLM-L6-v2';
-const TARGET_EMBEDDING_DIM = 1536;
+const EMBEDDING_DIM = 384;
 
 function getHfToken(): string {
     const token = process.env.HUGGINGFACE_API_TOKEN;
@@ -28,13 +28,11 @@ async function parseJsonResponse(response: Response): Promise<any> {
 }
 
 function normalizeEmbedding(vec: number[]): number[] {
-    if (vec.length === TARGET_EMBEDDING_DIM) {
+    if (vec.length === EMBEDDING_DIM) {
         return vec;
     }
-    if (vec.length > TARGET_EMBEDDING_DIM) {
-        return vec.slice(0, TARGET_EMBEDDING_DIM);
-    }
-    return [...vec, ...new Array(TARGET_EMBEDDING_DIM - vec.length).fill(0)];
+    // Truncate if model returns higher dims; should never need to pad
+    return vec.slice(0, EMBEDDING_DIM);
 }
 
 export async function createHfChatCompletion(params: {

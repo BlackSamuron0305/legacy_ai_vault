@@ -8,7 +8,7 @@ import { CategoryDetailSkeleton } from "@/components/skeletons";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCategoryDetail, useCategoryChat } from "@/hooks/useApi";
 import { api } from "@/lib/api";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 
 type ChatMessage = { role: 'user' | 'assistant'; content: string };
@@ -169,7 +169,6 @@ export default function CategoryDetail() {
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const cards = category?.blocks || category?.cards || category?.knowledgeCards || [];
@@ -179,17 +178,17 @@ export default function CategoryDetail() {
     if (!file || uploading) return;
     const allowed = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/markdown', 'text/plain'];
     if (!allowed.includes(file.type)) {
-      toast({ title: 'Invalid file type', description: 'Use PDF, DOCX, Markdown, or plain text.', variant: 'destructive' });
+      toast.error('Invalid file type', { description: 'Use PDF, DOCX, Markdown, or plain text.' });
       return;
     }
     setUploading(true);
     try {
       await api.uploadKnowledgeDocument(file, categoryName || undefined);
-      toast({ title: 'Uploaded', description: `${file.name} is being processed for this category.` });
+      toast.success('Uploaded', { description: `${file.name} is being processed for this category.` });
       queryClient.invalidateQueries({ queryKey: ['knowledge', 'category', categoryName] });
       queryClient.invalidateQueries({ queryKey: ['knowledge', 'categories'] });
     } catch (e: any) {
-      toast({ title: 'Upload failed', description: e?.message || 'Please try again.', variant: 'destructive' });
+      toast.error('Upload failed', { description: e?.message || 'Please try again.' });
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';

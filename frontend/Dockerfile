@@ -1,23 +1,15 @@
 # Build Stage
-FROM node:18-alpine as builder
+FROM node:20-bookworm-slim AS builder
 WORKDIR /app
 COPY package*.json ./
-# If bun.lockb exists but no package-lock, npm might complain or generate one.
-# Preferably use npm ci if lockfile exists, else npm install.
-RUN npm install
-
+RUN npm ci
 COPY . .
-# Build the application
 RUN npm run build
 
 # Production Stage
-FROM nginx:alpine
-# Copy the build output to replace the default nginx contents.
+FROM nginx:1.27-bookworm-slim
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Copy custom nginx config
-# Using environment variable substition for backend URL is tricky in static nginx config without envsubst.
-# Hardcoding 'backend' service name assumes docker-compose service name is 'backend'.
 RUN echo 'server { \
     listen 80; \
     \
@@ -38,4 +30,5 @@ RUN echo 'server { \
 }' > /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 CMD wget -qO- http://localhost/ || exit 1
 CMD ["nginx", "-g", "daemon off;"]

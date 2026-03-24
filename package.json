@@ -1,8 +1,5 @@
 {
   "scripts": {
     "healthcheck": "node healthcheck.mjs"
-  },
-  "dependencies": {
-    "@huggingface/inference": "^4.13.15"
   }
 }
