@@ -1,8 +1,8 @@
 services:
   postgres:
     image: pgvector/pgvector:pg16
-    ports:
-      - "5432:5432"
+    expose:
+      - "5432"
     environment:
       POSTGRES_USER: vault
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-vault_secret}
@@ -14,17 +14,34 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   frontend:
     build: 
       context: ./frontend
     ports:
       - "8080:80"
-    environment:
-      - VITE_API_URL=/api
     depends_on:
-      - backend
-      - ai-service
+      backend:
+        condition: service_healthy
+      ai-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   backend:
     build:
@@ -34,24 +51,44 @@ services:
     env_file:
       - ./.env
     environment:
+      - NODE_ENV=production
       - PORT=3001
       - AI_SERVICE_URL=http://ai-service:5000
+      - FRONTEND_URL=http://localhost:8080
       - DATABASE_URL=postgresql://vault:${POSTGRES_PASSWORD:-vault_secret}@postgres:5432/legacy_ai_vault
+      - UPLOADS_DIR=/app/uploads
     volumes:
       - uploads:/app/uploads
     depends_on:
       postgres:
         condition: service_healthy
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
 
   ai-service:
     build:
       context: ./ai_service
-    ports:
-      - "5000:5000"
+    expose:
+      - "5000"
     env_file:
       - ./.env
     environment:
       - LOG_LEVEL=INFO
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 volumes:
   pgdata:
